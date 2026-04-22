@@ -1,0 +1,60 @@
+# 🔹 Node modules
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# 🔹 Build folders
+dist/
+build/
+.next/
+out/
+
+# 🔹 Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# 🔹 Logs
+logs
+*.log
+
+# 🔹 OS files
+.DS_Store
+Thumbs.db
+
+# 🔹 Editor / IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# 🔹 TypeScript
+*.tsbuildinfo
+
+# 🔹 Coverage
+coverage/
+
+# 🔹 Cache
+.cache/
+.parcel-cache/
+
+# 🔹 Misc
+*.pem
+*.key
+
+# 🔹 Uploads (if any)
+uploads/
+public/uploads/
+
+# 🔹 MongoDB / Local DB files (optional)
+*.db
+*.sqlite
+
+# 🔹 Lock files (optional - depends on team)
+# package-lock.json
+# yarn.lock
+# pnpm-lock.yaml

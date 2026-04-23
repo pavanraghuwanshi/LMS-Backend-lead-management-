@@ -7,7 +7,7 @@ const app: Application = express();
 app.use(cors());
 app.use(express.json());
 
-app.use("/",leadRoute)
+app.use("/api/lead",leadRoute)
 
 app.get("/", (_req, res) => {
   return res.send("LMS Backend is Running....... 🚀");

@@ -30,6 +30,8 @@ export const authenticate = (
 ) => {
   const token = req.header("Authorization")?.replace("Bearer ", "");
 
+  console.log(token,"hhhhhhhhhhhh")
+
   if (!token) {
     return res.status(401).json({
       message: "Authorization token is required",

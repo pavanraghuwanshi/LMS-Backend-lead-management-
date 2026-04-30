@@ -15,7 +15,6 @@ const dbConnections: DBConnections = {
 const connectDB = async (): Promise<void> => {
   try {
     if (!dbConnections.db1) {
-      console.log("bbbbbbbbbbbbbb", process.env.MONGO_URI_1)
       dbConnections.db1 = mongoose.createConnection(
         process.env.MONGO_URI_1 as string
       );

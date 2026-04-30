@@ -1,4 +1,5 @@
 import mongoose, { Document, Schema } from "mongoose";
+import dbConnections from "../../config/db"; // ✅ important
 
 export interface ILead extends Document {
   leadTitle?: string;
@@ -10,28 +11,28 @@ export interface ILead extends Document {
 
   status: "new" | "contacted" | "interested" | "closed" | "rejected";
 
-  // 🔥 Hierarchy
   companyId: mongoose.Types.ObjectId;
   branchId?: mongoose.Types.ObjectId;
   supervisorId?: mongoose.Types.ObjectId;
   salesmanId?: mongoose.Types.ObjectId;
 
-  // 🔐 Created info
   createdById: mongoose.Types.ObjectId;
   createdByRole: string;
 
-  // 📊 Extra
   notes?: string;
+
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 const leadSchema = new Schema<ILead>(
   {
-    leadTitle: { type: String },
+    leadTitle: String,
 
     clientName: { type: String, required: true },
-    clientEmail: { type: String },
-    clientPhone: { type: String },
-    clientAdd: { type: String },
+    clientEmail: String,
+    clientPhone: String,
+    clientAdd: String,
 
     shopName: { type: String, required: true },
 
@@ -41,28 +42,26 @@ const leadSchema = new Schema<ILead>(
       default: "new",
     },
 
-    // 🔥 Hierarchy (IMPORTANT)
     companyId: {
-      type: mongoose.Schema.Types.ObjectId,
+      type: Schema.Types.ObjectId,
       ref: "Company",
       required: true,
     },
     branchId: {
-      type: mongoose.Schema.Types.ObjectId,
+      type: Schema.Types.ObjectId,
       ref: "Branch",
     },
     supervisorId: {
-      type: mongoose.Schema.Types.ObjectId,
+      type: Schema.Types.ObjectId,
       ref: "Supervisor",
     },
     salesmanId: {
-      type: mongoose.Schema.Types.ObjectId,
+      type: Schema.Types.ObjectId,
       ref: "Salesman",
     },
 
-    // 🔐 Creator
     createdById: {
-      type: mongoose.Schema.Types.ObjectId,
+      type: Schema.Types.ObjectId,
       required: true,
     },
     createdByRole: {
@@ -70,15 +69,14 @@ const leadSchema = new Schema<ILead>(
       required: true,
     },
 
-    notes: { type: String },
+    notes: String,
   },
-  {
-    timestamps: true,
-  }
+  { timestamps: true }
 );
 
-export default mongoose.model<ILead>("Lead", leadSchema);
+// 🔥 Model (db1 bind)
+const Lead =
+  dbConnections.db1?.model<ILead>("Lead", leadSchema) ||
+  mongoose.model<ILead>("Lead", leadSchema);
 
-
-
-
+export default Lead;

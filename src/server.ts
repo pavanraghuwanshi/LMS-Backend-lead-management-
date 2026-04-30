@@ -1,11 +1,12 @@
 import app from "./app";
 import dotenv from "dotenv";
-import connectDB from "./config/db";
-
 dotenv.config();
 
+console.log("ENV CHECK 👉", process.env.MONGO_URI_1);
+import dbConnections from "./config/db";
 
-connectDB(); // DB Coonect
+
+
 
 const PORT = process.env.PORT || 5000;
 

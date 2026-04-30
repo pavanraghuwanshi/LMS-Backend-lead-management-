@@ -71,7 +71,11 @@ export const getLeads = async (req: AuthRequest, res: Response) => {
       Lead.find(filter)
         .sort({ createdAt: -1 })
         .skip(skip)
-        .limit(limit),
+        .limit(limit)
+               // 🔥 Populate only name fields
+        .populate({ path: "companyId", select: "companyName" })
+        .populate({ path: "branchId", select: "branchName" }),
+        // .populate({ path: "assignedTo", select: "name" }), // if exists,
 
       Lead.countDocuments(filter),
     ]);

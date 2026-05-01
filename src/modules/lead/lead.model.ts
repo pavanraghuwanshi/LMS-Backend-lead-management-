@@ -34,7 +34,7 @@ const leadSchema = new Schema<ILead>(
     clientPhone: String,
     clientAdd: String,
 
-    shopName: { type: String, required: true },
+    shopName: { type: String},
 
     status: {
       type: String,

@@ -108,7 +108,8 @@ export const getLeads = async (req: AuthRequest, res: Response) => {
       pagination: {
         total,
         page,
-        pages: Math.ceil(total / limit),
+        limit,
+        totalPages: Math.ceil(total / limit),
       },
     });
   } catch (error: any) {

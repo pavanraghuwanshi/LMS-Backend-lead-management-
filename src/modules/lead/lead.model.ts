@@ -7,7 +7,7 @@ export interface ILead extends Document {
   clientEmail?: string;
   clientPhone?: string;
   clientAdd?: string;
-  shopName: string;
+  shopName?: string;
 
   status: "new" | "contacted" | "interested" | "closed" | "rejected";
 

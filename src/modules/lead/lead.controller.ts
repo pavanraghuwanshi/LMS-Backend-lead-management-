@@ -1,6 +1,12 @@
 import { Response } from "express";
 import { AuthRequest } from "../../middlewares/auth.middleware";
 import Lead from "./lead.model";
+import Company from "../../RocketsalesModels/Company";
+import Branch from "../../RocketsalesModels/Branch";
+import SuperAdmin from "../../RocketsalesModels/spradmin";
+import Supervisor from "../../RocketsalesModels/Supervisor";
+import Salesman from "../../RocketsalesModels/Salesman";
+
 import {buildLeadFilter, buildHierarchyData } from "../../utils/hierarchy.util";
 
 
@@ -72,10 +78,26 @@ export const getLeads = async (req: AuthRequest, res: Response) => {
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit)
-               // 🔥 Populate only name fields
-        .populate({ path: "companyId", select: "companyName" })
-        .populate({ path: "branchId", select: "branchName" }),
-        // .populate({ path: "assignedTo", select: "name" }), // if exists,
+        .populate({
+        path: "companyId",
+        model: Company, // 🔥 yaha magic hai
+        select: "companyName",
+      })
+        .populate({
+        path: "branchId",
+        model: Branch, // 🔥 yaha magic hai
+        select: "branchName",
+      })
+      .populate({
+        path: "supervisorId",
+        model: Supervisor, // 🔥 yaha magic hai
+        select: "supervisorName",
+      })
+      .populate({
+        path: "salesmanId",
+        model: Salesman, // 🔥 yaha magic hai
+        select: "salesmanName",
+      }),
 
       Lead.countDocuments(filter),
     ]);

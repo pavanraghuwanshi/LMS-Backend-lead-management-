@@ -1,23 +1,37 @@
 import { Request, Response } from "express";
 import  Client  from "./client.model";
+import { buildHierarchyData } from "../../utils/hierarchy.util";
+import { AuthRequest } from "../../middlewares/auth.middleware";
 
 // ➕ Create Client
-export const createClient = async (req: any, res: Response) => {
+export const createClient = async (req: AuthRequest, res: Response) => {
   try {
-    const { clientName, email, phone, address } = req.body;
+    const user = req.user;
+
+    if (!user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    // 🔥 Build hierarchy (same as Lead)
+    const hierarchy = buildHierarchyData(user);
 
     const client = await Client.create({
-      clientName,
-      email,
-      phone,
-      address,
-      companyId: req.user.companyId,
-      branchId: req.user.branchId,
+      ...req.body,
+      ...hierarchy,
+
+      createdById: user.id,
+      createdByRole: user.role,
     });
 
-    res.status(201).json(client);
-  } catch (error) {
-    res.status(500).json({ message: "Error creating client", error });
+    return res.status(201).json({
+      message: "Client created successfully",
+      data: client,
+    });
+  } catch (error: any) {
+    return res.status(500).json({
+      message: "Error creating client",
+      error: error.message,
+    });
   }
 };
 

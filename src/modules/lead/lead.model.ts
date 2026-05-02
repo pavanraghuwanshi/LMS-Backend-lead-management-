@@ -75,8 +75,5 @@ const leadSchema = new Schema<ILead>(
 );
 
 // 🔥 Model (db1 bind)
-const Lead =
-  dbConnections.db2?.model<ILead>("Lead", leadSchema) ||
-  mongoose.model<ILead>("Lead", leadSchema);
-
+const Lead =  dbConnections.db2!.models.Lead ||  dbConnections.db2!.model<ILead>("Lead", leadSchema);
 export default Lead;

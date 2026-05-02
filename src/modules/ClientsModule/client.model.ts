@@ -20,15 +20,9 @@ const ClientSchema = new Schema<IClient>(
     phone: String,
     address: String,
 
-    companyId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Company",
-      required: true,
-    },
-    branchId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Branch",
-    },
+    companyId: { type: mongoose.Schema.Types.ObjectId, ref: "Company" },
+    branchId: { type: mongoose.Schema.Types.ObjectId, ref: "Branch" },
+
   },
   { timestamps: true }
 );

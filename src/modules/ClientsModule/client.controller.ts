@@ -2,6 +2,8 @@ import { Request, Response } from "express";
 import  Client  from "./client.model";
 import { buildHierarchyData, buildLeadFilter } from "../../utils/hierarchy.util";
 import { AuthRequest } from "../../middlewares/auth.middleware";
+import Company from "../../RocketsalesModels/Company";
+import Branch from "../../RocketsalesModels/Branch";
 
 // ➕ Create Client
 export const createClient = async (req: AuthRequest, res: Response) => {
@@ -66,28 +68,22 @@ export const getClients = async (req: AuthRequest, res: Response) => {
     }
 
     const [clients, total] = await Promise.all([
-      Client.find(filter)
+    Client.find(filter)
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit)
         .populate({
-          path: "companyId",
-          select: "companyName",
+        path: "companyId",
+        model: Company,
+        select: "companyName",
         })
         .populate({
-          path: "branchId",
-          select: "branchName",
-        })
-        .populate({
-          path: "supervisorId",
-          select: "supervisorName",
-        })
-        .populate({
-          path: "salesmanId",
-          select: "salesmanName",
+        path: "branchId",
+        model: Branch,
+        select: "branchName",
         }),
 
-      Client.countDocuments(filter),
+    Client.countDocuments(filter),
     ]);
 
     return res.status(200).json({

@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import  Client  from "./client.model";
-import { buildHierarchyData } from "../../utils/hierarchy.util";
+import { buildHierarchyData, buildLeadFilter } from "../../utils/hierarchy.util";
 import { AuthRequest } from "../../middlewares/auth.middleware";
 
 // ➕ Create Client
@@ -36,23 +36,75 @@ export const createClient = async (req: AuthRequest, res: Response) => {
 };
 
 // 📥 Get All Clients
-export const getClients = async (req: any, res: Response) => {
+export const getClients = async (req: AuthRequest, res: Response) => {
   try {
-    const { search = "" } = req.query;
+    const user = req.user;
 
-    const query: any = {
-      companyId: req.user.companyId,
-      clientName: { $regex: search, $options: "i" },
-    };
+    if (!user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
 
-    const clients = await Client.find(query)
-      .populate("companyId", "companyName")
-      .populate("branchId", "branchName")
-      .sort({ createdAt: -1 });
+    // 🔢 Pagination
+    let { page = 1, limit = 10, search = "" } = req.query as any;
 
-    res.json(clients);
-  } catch (error) {
-    res.status(500).json({ message: "Error fetching clients", error });
+    page = parseInt(page);
+    limit = parseInt(limit);
+
+    const skip = (page - 1) * limit;
+
+    // 🔥 SAME FILTER (no change)
+    let filter = buildLeadFilter(user, req.query);
+
+    // 🔍 Search
+    if (search) {
+      filter.$or = [
+        { clientName: { $regex: search, $options: "i" } },
+        { email: { $regex: search, $options: "i" } },
+        { phone: { $regex: search, $options: "i" } },
+        { address: { $regex: search, $options: "i" } },
+      ];
+    }
+
+    const [clients, total] = await Promise.all([
+      Client.find(filter)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .populate({
+          path: "companyId",
+          select: "companyName",
+        })
+        .populate({
+          path: "branchId",
+          select: "branchName",
+        })
+        .populate({
+          path: "supervisorId",
+          select: "supervisorName",
+        })
+        .populate({
+          path: "salesmanId",
+          select: "salesmanName",
+        }),
+
+      Client.countDocuments(filter),
+    ]);
+
+    return res.status(200).json({
+      message: "Clients fetched successfully",
+      data: clients,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    });
+  } catch (error: any) {
+    return res.status(500).json({
+      message: "Error fetching clients",
+      error: error.message,
+    });
   }
 };
 

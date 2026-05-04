@@ -4,6 +4,8 @@ import { buildHierarchyData, buildLeadFilter } from "../../utils/hierarchy.util"
 import { AuthRequest } from "../../middlewares/auth.middleware";
 import Company from "../../RocketsalesModels/Company";
 import Branch from "../../RocketsalesModels/Branch";
+import Salesman from "../../RocketsalesModels/Salesman";
+import Supervisor from "../../RocketsalesModels/Supervisor";
 
 // ➕ Create Client
 export const createClient = async (req: AuthRequest, res: Response) => {
@@ -76,11 +78,18 @@ export const getClients = async (req: AuthRequest, res: Response) => {
         path: "companyId",
         model: Company,
         select: "companyName",
-        })
-        .populate({
+        }).populate({
         path: "branchId",
         model: Branch,
         select: "branchName",
+        }).populate({
+        path: "supervisorId",
+        model: Supervisor,
+        select: "supervisorName",
+        }).populate({
+        path: "salesmanId",
+        model: Salesman,
+        select: "salesmanName",
         }),
 
     Client.countDocuments(filter),
@@ -109,7 +118,6 @@ export const getClientById = async (req: any, res: Response) => {
   try {
     const client = await Client.findOne({
       _id: req.params.id,
-      companyId: req.user.companyId,
     });
 
     if (!client) {
@@ -128,7 +136,6 @@ export const updateClient = async (req: any, res: Response) => {
     const client = await Client.findOneAndUpdate(
       {
         _id: req.params.id,
-        companyId: req.user.companyId,
       },
       req.body,
       { new: true }
@@ -149,7 +156,6 @@ export const deleteClient = async (req: any, res: Response) => {
   try {
     const client = await Client.findOneAndDelete({
       _id: req.params.id,
-      companyId: req.user.companyId,
     });
 
     if (!client) {

@@ -6,9 +6,11 @@ export interface IClient extends Document {
   email?: string;
   phone?: string;
   address?: string;
-
+  
   companyId: mongoose.Types.ObjectId;
   branchId?: mongoose.Types.ObjectId;
+  supervisorId?: mongoose.Types.ObjectId;
+  salesmanId?: mongoose.Types.ObjectId;
 
   createdAt: Date;
 }
@@ -22,6 +24,8 @@ const ClientSchema = new Schema<IClient>(
 
     companyId: { type: mongoose.Schema.Types.ObjectId, ref: "Company" },
     branchId: { type: mongoose.Schema.Types.ObjectId, ref: "Branch" },
+    supervisorId:{ type:mongoose.Schema.Types.ObjectId, ref:"Supervisor"},
+    salesmanId:{ type:mongoose.Schema.Types.ObjectId, ref:"Salesman"},
 
   },
   { timestamps: true }

@@ -18,16 +18,8 @@ export interface IAppointment extends Document {
   meetingLink?: string;
   meetingDate?: Date;
 
-  momAudioUrl?: string;
-  momNotes?: string;
-  momImageUrl?: string;
-
   appointmentDateTime?: Date;
-  notificationSent: boolean;
 
-  // Hospital fields
-  patientType?: "NEW" | "OLD";
-  gender?: "Male" | "Female" | "Other";
   nextFollowUpDate?: Date;
 
 
@@ -82,15 +74,9 @@ const appointmentSchema = new Schema<IAppointment>({
   meetingLink: String,
   meetingDate: Date,
 
-  momAudioUrl: String,
-  momNotes: String,
-  momImageUrl: String,
 
   appointmentDateTime: { type: Date, index: true },
-  notificationSent: { type: Boolean, default: false },
 
-  patientType: { type: String, enum: ["NEW", "OLD"] },
-  gender: { type: String, enum: ["Male", "Female", "Other"] },
   nextFollowUpDate: Date,
 
   appointmentTime: String,

@@ -9,7 +9,7 @@ export interface ILead extends Document {
   clientAdd?: string;
   shopName?: string;
 
-  status: "new" | "contacted" | "interested" | "closed" | "rejected";
+  status: "new"| "in-progress"| "interested" | "rejected" | "completed";
 
   companyId: mongoose.Types.ObjectId;
   branchId?: mongoose.Types.ObjectId;

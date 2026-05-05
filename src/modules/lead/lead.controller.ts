@@ -80,22 +80,22 @@ export const getLeads = async (req: AuthRequest, res: Response) => {
         .limit(limit)
         .populate({
         path: "companyId",
-        model: Company, // 🔥 yaha magic hai
+        model: Company,
         select: "companyName",
       })
         .populate({
         path: "branchId",
-        model: Branch, // 🔥 yaha magic hai
+        model: Branch,
         select: "branchName",
       })
       .populate({
         path: "supervisorId",
-        model: Supervisor, // 🔥 yaha magic hai
+        model: Supervisor,
         select: "supervisorName",
       })
       .populate({
         path: "salesmanId",
-        model: Salesman, // 🔥 yaha magic hai
+        model: Salesman,
         select: "salesmanName",
       }),
 
@@ -119,6 +119,7 @@ export const getLeads = async (req: AuthRequest, res: Response) => {
     });
   }
 };
+
 
 // Get Single leads by id
 export const getLeadById = async (req: AuthRequest, res: Response) => {

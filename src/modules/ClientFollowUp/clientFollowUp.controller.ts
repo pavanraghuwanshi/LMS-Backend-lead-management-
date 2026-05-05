@@ -2,6 +2,10 @@ import { AuthRequest } from "../../middlewares/auth.middleware";
 import { Response } from "express";
 import { buildHierarchyData } from "../../utils/hierarchy.util";
 import FollowUp from "./clientFollowUp.model";
+import Salesman from "../../RocketsalesModels/Salesman";
+import Supervisor from "../../RocketsalesModels/Supervisor";
+import Branch from "../../RocketsalesModels/Branch";
+import Company from "../../RocketsalesModels/Company";
 
 
 
@@ -51,6 +55,10 @@ export const getFollowUps = async (req: AuthRequest, res: Response) => {
   try {
     const user = req.user;
 
+    if (!user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
     let { page = 1, limit = 10, search = "", status, leadId } = req.query as any;
 
     page = parseInt(page);
@@ -67,21 +75,51 @@ export const getFollowUps = async (req: AuthRequest, res: Response) => {
       filter.remark = { $regex: search, $options: "i" };
     }
 
-    // 🔥 Role-based filtering (optional)
+    // 🔥 Role-based filter (same concept as leads)
     if (user?.role === "salesman") {
       filter.salesmanId = user.id;
     }
 
     const [data, total] = await Promise.all([
       FollowUp.find(filter)
-        .populate("leadId")
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+
+        // 🔥 Populate Lead + its relations
+        .populate({
+          path: "leadId",
+          select: "clientName clientEmail clientPhone shopName",
+
+          populate: [
+            {
+              path: "companyId",
+              model: Company,
+              select: "companyName",
+            },
+            {
+              path: "branchId",
+              model: Branch,
+              select: "branchName",
+            },
+            {
+              path: "supervisorId",
+              model: Supervisor,
+              select: "supervisorName",
+            },
+            {
+              path: "salesmanId",
+              model: Salesman,
+              select: "salesmanName",
+            },
+          ],
+        })
+
+        // 🔥 Optional: also keep direct refs (fast access)
         .populate("companyId", "companyName")
         .populate("branchId", "branchName")
         .populate("supervisorId", "name")
-        .populate("salesmanId", "name")
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(limit),
+        .populate("salesmanId", "name"),
 
       FollowUp.countDocuments(filter),
     ]);
@@ -100,7 +138,6 @@ export const getFollowUps = async (req: AuthRequest, res: Response) => {
     });
   }
 };
-
 
 
 

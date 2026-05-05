@@ -6,6 +6,10 @@ import ClientConfermation from "../clientConfermationTrack/clientConfermation.mo
 
 import { AuthRequest } from "../../middlewares/auth.middleware";
 import { buildHierarchyData, buildLeadFilter } from "../../utils/hierarchy.util";
+import Company from "../../RocketsalesModels/Company";
+import Branch from "../../RocketsalesModels/Branch";
+import Supervisor from "../../RocketsalesModels/Supervisor";
+import Salesman from "../../RocketsalesModels/Salesman";
 
 
 
@@ -79,19 +83,35 @@ export const getAppointments = async (req: AuthRequest, res: Response) => {
         { status: regex },
       ];
     }
+const [appointments, total] = await Promise.all([
+  Appointment.find(filter)
+    .sort({ meetingDate: -1 })
+    .skip(skip)
+    .limit(limit)
 
-    const [appointments, total] = await Promise.all([
-      Appointment.find(filter)
-        .sort({ meetingDate: -1 })
-        .skip(skip)
-        .limit(limit)
-        .populate("companyId", "companyName")
-        .populate("branchId", "branchName")
-        .populate("supervisorId", "supervisorName")
-        .populate("salesmanId", "salesmanName"),
+    .populate({
+      path: "companyId",
+      model: Company,
+      select: "companyName",
+    })
+    .populate({
+      path: "branchId",
+      model: Branch,
+      select: "branchName",
+    })
+    .populate({
+      path: "supervisorId",
+      model: Supervisor,
+      select: "supervisorName",
+    })
+    .populate({
+      path: "salesmanId",
+      model: Salesman,
+      select: "salesmanName",
+    }),
 
-      Appointment.countDocuments(filter),
-    ]);
+  Appointment.countDocuments(filter),
+]);
 
     return res.json({
       success: true,

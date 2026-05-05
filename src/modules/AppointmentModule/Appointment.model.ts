@@ -30,17 +30,6 @@ export interface IAppointment extends Document {
   gender?: "Male" | "Female" | "Other";
   nextFollowUpDate?: Date;
 
-  visitedFor?: ("Consultation" | "Medicine" | "Panchakarma")[];
-
-  consultationFees?: number;
-  medicineFees?: number;
-  panchakarmaFees?: number;
-
-  totalFees?: number;
-  paidAmount?: number;
-  balanceAmount?: number;
-
-  paymentMode?: "Cash" | "UPI" | "Card" | "Online";
 
   appointmentTime?: string;
 
@@ -103,26 +92,6 @@ const appointmentSchema = new Schema<IAppointment>({
   patientType: { type: String, enum: ["NEW", "OLD"] },
   gender: { type: String, enum: ["Male", "Female", "Other"] },
   nextFollowUpDate: Date,
-
-  visitedFor: [
-    {
-      type: String,
-      enum: ["Consultation", "Medicine", "Panchakarma"],
-    },
-  ],
-
-  consultationFees: { type: Number, default: 0 },
-  medicineFees: { type: Number, default: 0 },
-  panchakarmaFees: { type: Number, default: 0 },
-
-  totalFees: { type: Number, default: 0 },
-  paidAmount: { type: Number, default: 0 },
-  balanceAmount: { type: Number, default: 0 },
-
-  paymentMode: {
-    type: String,
-    enum: ["Cash", "UPI", "Card", "Online"],
-  },
 
   appointmentTime: String,
 

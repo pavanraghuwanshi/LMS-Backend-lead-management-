@@ -39,7 +39,7 @@ export interface IAppointment extends Document {
 }
 
 const appointmentSchema = new Schema<IAppointment>({
-  leadId: { type: Schema.Types.ObjectId, ref: "LeadGen" },
+  leadId: { type: Schema.Types.ObjectId, ref: "Lead" },
 
   leadTitle: String,
   clientName: String,

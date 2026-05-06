@@ -78,6 +78,7 @@ export const getLeads = async (req: AuthRequest, res: Response) => {
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit)
+        .populate("clientId","clientName,email,phone,")
         .populate({
         path: "companyId",
         model: Company,

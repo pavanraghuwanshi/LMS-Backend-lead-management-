@@ -10,9 +10,28 @@ import Company from "../../RocketsalesModels/Company";
 import Branch from "../../RocketsalesModels/Branch";
 import Supervisor from "../../RocketsalesModels/Supervisor";
 import Salesman from "../../RocketsalesModels/Salesman";
+import SuperAdmin from "../../RocketsalesModels/spradmin";
 
 
 
+const ROLE_MODEL_MAP: Record<string, any> = {
+  superadmin: SuperAdmin,
+  company: Company,
+  branch: Branch,
+  supervisor: Supervisor,
+  salesman: Salesman,
+};
+
+const getNameFromUser = (doc: any) => {
+  return (
+    doc?.name ||
+    doc?.companyName ||
+    doc?.branchName ||
+    doc?.supervisorName ||
+    doc?.salesmanName ||
+    ""
+  );
+};
 
 
 
@@ -116,7 +135,6 @@ const [appointments, total] = await Promise.all([
       model: Salesman,
       select: "salesmanName",
     }),
-
   Appointment.countDocuments(filter),
 ]);
 
@@ -152,15 +170,25 @@ export const createAppointment = async (req: AuthRequest, res: Response) => {
 
     const hierarchy = buildHierarchyData(user);
 
+    // 🔥 Get model from role
+    const Model = ROLE_MODEL_MAP[user.role];
+
+    let createdByName = "";
+
+    if (Model) {
+      const userDoc = await Model.findById(user.id).lean();
+      createdByName = getNameFromUser(userDoc);
+    }
+
     const appointment = await Appointment.create({
       ...req.body,
       ...hierarchy,
 
       createdById: user.id,
       createdByRole: user.role,
+      createdByName, // ✅ name snapshot
     });
 
-    // 🔥 Update Lead
     await Lead.findByIdAndUpdate(leadId, {
       status: "In-progress",
       ...hierarchy,

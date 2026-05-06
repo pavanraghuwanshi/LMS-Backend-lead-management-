@@ -11,6 +11,7 @@ export interface IAppointment extends Document {
   clientAdd?: string;
   shopName?: string;
   Notes?: string;
+  createdByName:string;
 
   status: "Scheduled" | "Rescheduled" | "Cancelled" | "Completed";
 
@@ -48,6 +49,7 @@ const appointmentSchema = new Schema<IAppointment>({
   clientAdd: String,
   shopName: String,
   Notes: String,
+  createdByName:String,
 
   status: {
     type: String,
@@ -91,7 +93,7 @@ const appointmentSchema = new Schema<IAppointment>({
   createdById: { type: Schema.Types.ObjectId, refPath: "createdByRole" },
   createdByRole: {
     type: String,
-    enum: ["superadmin", "company", "branch", "supervisor", "salesman"],
+    enum: ["superadmin", "company", "branch", "supervisor", "salesman"]
   },
 
   createdAt: { type: Date, default: Date.now },

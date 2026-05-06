@@ -3,11 +3,8 @@ import dbConnections from "../../config/db"; // ✅ important
 
 export interface ILead extends Document {
   leadTitle?: string;
-  clientName: string;
-  clientEmail?: string;
-  clientPhone?: string;
-  clientAdd?: string;
   shopName?: string;
+  clientId?:string;
 
   status: "new"| "in-progress"| "interested" | "rejected" | "completed";
 
@@ -29,10 +26,6 @@ const leadSchema = new Schema<ILead>(
   {
     leadTitle: String,
 
-    clientName: { type: String, required: true },
-    clientEmail: String,
-    clientPhone: String,
-    clientAdd: String,
 
     shopName: String,
 
@@ -59,7 +52,10 @@ const leadSchema = new Schema<ILead>(
       type: Schema.Types.ObjectId,
       ref: "Salesman",
     },
-
+    clientId:{
+      type:Schema.Types.ObjectId,
+      ref:"Client"
+    },
     createdById: {
       type: Schema.Types.ObjectId,
       required: true,

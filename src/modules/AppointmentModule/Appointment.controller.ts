@@ -239,7 +239,7 @@ export const createClientFeedback = async (req: AuthRequest, res: Response) => {
     const user = req.user;
     if (!user) return res.status(401).json({ message: "Unauthorized" });
 
-    const { appointmentId, leadId, clientConfrmation,startDate } = req.body;
+    const { appointmentId, leadId, clientConfrmation,installationDate } = req.body;
 
     const appointment = await Appointment.findById(appointmentId);
     if (!appointment)
@@ -264,7 +264,7 @@ export const createClientFeedback = async (req: AuthRequest, res: Response) => {
           phone: appointment.clientPhone,
           email: appointment.clientEmail,
         },
-        startDate,
+        installationDate,
         appointmentId,
         leadId,
       });

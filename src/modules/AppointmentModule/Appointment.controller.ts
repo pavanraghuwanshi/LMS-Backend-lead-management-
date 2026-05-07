@@ -240,8 +240,6 @@ export const createClientFeedback = async (req: AuthRequest, res: Response) => {
 
     const { appointmentId, leadId, clientConfrmation,installationDate } = req.body;
 
-    console.log("gggggggggggg")
-
     const appointment = await Appointment.findById(appointmentId)
                             .populate({
                               path: "leadId",

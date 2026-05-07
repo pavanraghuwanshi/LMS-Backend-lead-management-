@@ -5,6 +5,7 @@ import clientRoute from "./modules/ClientsModule/client.route"
 import FollowUpRoute from "./modules/ClientFollowUp/clientFollowUp.route"
 import AppointmentRoute from "./modules/AppointmentModule/Appointment.route"
 import ClientConfirmationRoute from "./modules/clientConfermationTrack/clientCofermation.route"
+import LeadDashboardStatsRoute from "./modules/DashBoardApis/dashboardCount.route"
 const app: Application = express();
 
 app.use(cors());
@@ -15,6 +16,7 @@ app.use("/api/client",clientRoute)
 app.use("/api/follow-up",FollowUpRoute)
 app.use("/api/appointment",AppointmentRoute)
 app.use("/api/client-confirmation",ClientConfirmationRoute)
+app.use("/api/dashboard",LeadDashboardStatsRoute)
 
 app.get("/", (_req, res) => {
   return res.send("LMS Backend is Running....... 🚀");

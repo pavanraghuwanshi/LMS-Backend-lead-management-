@@ -9,7 +9,7 @@ export interface IClientConfermation extends Document {
   followUpDate?: Date;
   deliveryAddress?: string;
 
-  clientName: string;
+  clientName?: string;
 
   contact: {
     phone?: string;
@@ -51,8 +51,8 @@ const clientConfermationSchema = new Schema<IClientConfermation>({
   // 🔹 Client Details
   clientName: {
     type: String,
-    required: true,
-    index: true,
+    // required: true,
+    // index: true,
   },
 
   contact: {
@@ -111,12 +111,12 @@ clientConfermationSchema.virtual("createdByModel").get(function (this: IClientCo
 });
 
 
-// ⚠️ FIXED: You had wrong field "name"
-clientConfermationSchema.index({
-  clientName: "text",
-  "contact.phone": 1,
-  "contact.email": 1,
-});
+// // ⚠️ FIXED: You had wrong field "name"
+// clientConfermationSchema.index({
+//   clientName: "text",
+//   "contact.phone": 1,
+//   "contact.email": 1,
+// });
 
 const ClientConfermation =  dbConnections.db2!.models.ClientConfermation ||  dbConnections.db2!.model<IClientConfermation>("ClientConfermation", clientConfermationSchema);
 export default ClientConfermation;

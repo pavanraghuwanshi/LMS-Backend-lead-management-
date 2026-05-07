@@ -240,8 +240,19 @@ export const createClientFeedback = async (req: AuthRequest, res: Response) => {
 
     const { appointmentId, leadId, clientConfrmation,installationDate } = req.body;
 
-    const appointment = await Appointment.findById(appointmentId);
-    if (!appointment)
+    console.log("gggggggggggg")
+
+    const appointment = await Appointment.findById(appointmentId)
+                            .populate({
+                              path: "leadId",
+                              select: "clientId -_id",
+                              populate: {
+                                path: "clientId",
+                                select: "clientName -_id",
+                              },
+                            });
+
+    if (!appointment && !appointment?.leadId.clientId.clientName)
       return res.status(404).json({ message: "Appointment not found" });
 
     const feedback = await ClientConfermation.create({
@@ -257,8 +268,9 @@ export const createClientFeedback = async (req: AuthRequest, res: Response) => {
 
     // AUTO CLIENT CREATE
     if (clientConfrmation === "YES") {
+
       await Client.create({
-        clientName: appointment.clientName,
+        clientName: appointment?.leadId.clientId.clientName,
         contact: {
           phone: appointment.clientPhone,
           email: appointment.clientEmail,

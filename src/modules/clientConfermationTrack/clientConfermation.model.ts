@@ -4,7 +4,7 @@ import dbConnections from "../../config/db";
 // ✅ Interface
 export interface IClientConfermation extends Document {
   clientFeedback?: string;
-  clientConfrmation?: "YES" | "NO" | "MAYBE";
+  clientConfirmation?: "YES" | "NO" | "MAYBE";
   installationDate?: Date;
   followUpDate?: Date;
   deliveryAddress?: string;
@@ -39,7 +39,7 @@ export interface IClientConfermation extends Document {
 const clientConfermationSchema = new Schema<IClientConfermation>({
   clientFeedback: String,
 
-  clientConfrmation: {
+  clientConfirmation: {
     type: String,
     enum: ["YES", "NO", "MAYBE"],
   },

@@ -30,7 +30,7 @@ export const getClientConfermation = async (
 
     const {
       clientFeedback,
-      clientConfrmation,
+      clientConfirmation,
       installationDateFrom,
       installationDateTo,
       createdByRole,
@@ -82,8 +82,8 @@ export const getClientConfermation = async (
       };
     }
 
-    if (clientConfrmation) {
-      query.clientConfrmation = clientConfrmation;
+    if (clientConfirmation) {
+      query.clientConfirmation = clientConfirmation;
     }
 
     if (createdByRole) {
@@ -120,7 +120,7 @@ export const getClientConfermation = async (
 
       query.$or = [
         { clientFeedback: regex },
-        { clientConfrmation: regex },
+        { clientConfirmation: regex },
         { createdByRole: regex },
       ];
     }
@@ -247,7 +247,7 @@ export const createClientConfermation = async (
 
     let payload: any = {
       clientFeedback: req.body.clientFeedback,
-      clientConfrmation: req.body.clientConfrmation,
+      clientConfirmation: req.body.clientConfirmation,
       installationDate: req.body.installationDate,
       followUpDate: req.body.followUpDate,
       clientName: req.body.clientName,

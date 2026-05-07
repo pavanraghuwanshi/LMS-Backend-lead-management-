@@ -238,7 +238,7 @@ export const createClientFeedback = async (req: AuthRequest, res: Response) => {
     const user = req.user;
     if (!user) return res.status(401).json({ message: "Unauthorized" });
 
-    const { appointmentId, leadId, clientConfrmation,installationDate } = req.body;
+    const { appointmentId, leadId, clientConfirmation,installationDate } = req.body;
 
     const appointment = await Appointment.findById(appointmentId)
                             .populate({
@@ -265,7 +265,7 @@ export const createClientFeedback = async (req: AuthRequest, res: Response) => {
     });
 
     // AUTO CLIENT CREATE
-    if (clientConfrmation === "YES") {
+    if (clientConfirmation === "YES") {
 
       await Client.create({
         clientName: appointment?.leadId.clientId.clientName,

@@ -188,21 +188,7 @@ export const getClientConfermation = async (
         // =======================================
         // APPOINTMENT
         // =======================================
-        .populate({
-          path: "appointmentId",
-          model: Appointment,
-          select: "status date",
-        })
-
-        // =======================================
-        // CREATED BY
-        // =======================================
-        .populate({
-          path: "createdById",
-          select:
-            "companyName branchName supervisorName salesmanName",
-        }),
-
+        .populate("appointmentId","status date",),
       ClientConfermation.countDocuments(query),
     ]);
 

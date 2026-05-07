@@ -76,7 +76,7 @@ const clientConfermationSchema = new Schema<IClientConfermation>({
 
   leadId: {
     type: Schema.Types.ObjectId,
-    ref: "LeadGen",
+    ref: "Lead",
     required: true,
   },
 

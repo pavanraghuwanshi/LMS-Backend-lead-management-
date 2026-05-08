@@ -1,4 +1,5 @@
 import { Response } from "express";
+import mongoose from "mongoose";
 import { AuthRequest } from "../../middlewares/auth.middleware";
 import Lead from "./lead.model";
 import Company from "../../RocketsalesModels/Company";
@@ -136,7 +137,6 @@ export const getLeadDropdown = async (
       });
     }
 
-    // ✅ pagination
     let { page = 1, limit = 10, search = "" } = req.query as any;
 
     page = parseInt(page);
@@ -144,27 +144,118 @@ export const getLeadDropdown = async (
 
     const skip = (page - 1) * limit;
 
-    // 🔥 role based filter
+    // ✅ role based filter
     const filter: any = buildLeadFilter(user, req.query);
 
-    // 🔍 search only on leadTitle
-    if (search) {
-      filter.leadTitle = {
-        $regex: search,
-        $options: "i",
-      };
-    }
+    // ✅ aggregation needs ObjectId manually
+    const objectIdFields = [
+      "companyId",
+      "branchId",
+      "supervisorId",
+      "salesmanId",
+      "createdById",
+    ];
 
-    const [leads, total] = await Promise.all([
-      Lead.find(filter)
-        .select("_id leadTitle")
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(limit)
-        .lean(),
+    objectIdFields.forEach((field) => {
+      if (
+        filter[field] &&
+        mongoose.Types.ObjectId.isValid(filter[field])
+      ) {
+        filter[field] = new mongoose.Types.ObjectId(filter[field]);
+      }
+    });
 
-      Lead.countDocuments(filter),
-    ]);
+    // ✅ status filter
+    filter.status = "new";
+
+    const aggregationPipeline: any[] = [
+      {
+        $match: filter,
+      },
+
+      // ✅ join client collection
+      {
+        $lookup: {
+          from: "clients", // 👈 check collection name once
+          localField: "clientId",
+          foreignField: "_id",
+          as: "clientId",
+        },
+      },
+
+      {
+        $unwind: {
+          path: "$clientId",
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+
+      // ✅ search on leadTitle + clientName
+      ...(search
+        ? [
+            {
+              $match: {
+                $or: [
+                  {
+                    leadTitle: {
+                      $regex: search,
+                      $options: "i",
+                    },
+                  },
+                  {
+                    "clientId.clientName": {
+                      $regex: search,
+                      $options: "i",
+                    },
+                  },
+                ],
+              },
+            },
+          ]
+        : []),
+
+      {
+        $sort: {
+          createdAt: -1,
+        },
+      },
+
+      {
+        $facet: {
+          data: [
+            {
+              $skip: skip,
+            },
+            {
+              $limit: limit,
+            },
+            {
+              $project: {
+                _id: 1,
+                leadTitle: 1,
+                clientId: {
+                  _id: "$clientId._id",
+                  clientName: "$clientId.clientName",
+                },
+              },
+            },
+          ],
+
+          total: [
+            {
+              $count: "count",
+            },
+          ],
+        },
+      },
+    ];
+
+    console.log("aggregationPipeline", aggregationPipeline);
+
+    const result = await Lead.aggregate(aggregationPipeline);
+
+    const leads = result[0]?.data || [];
+    const total = result[0]?.total?.[0]?.count || 0;
 
     return res.status(200).json({
       message: "Lead dropdown fetched successfully",
@@ -184,7 +275,6 @@ export const getLeadDropdown = async (
     });
   }
 };
-
 
 // Get Single leads by id
 export const getLeadById = async (req: AuthRequest, res: Response) => {

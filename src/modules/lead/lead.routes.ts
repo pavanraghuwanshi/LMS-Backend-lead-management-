@@ -4,6 +4,7 @@ import {
   getLeads,
   updateLead,
   deleteLead,
+  getLeadDropdown,
 } from "./lead.controller";
 
 import { authenticate } from "../../middlewares/auth.middleware";
@@ -18,6 +19,9 @@ router.post("/", createLead);
 
 // 📄 Get All Leads (with filters, pagination, search)
 router.get("/", getLeads);
+
+// 📄 Get Lead DropDown Api
+router.get("/dropdown", getLeadDropdown);
 
 // ✏️ Update Lead
 router.put("/:id", updateLead);

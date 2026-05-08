@@ -70,6 +70,6 @@ const leadSchema = new Schema<ILead>(
   { timestamps: true }
 );
 
-// 🔥 Model (db1 bind)
+// 🔥 Model (db2 bind)
 const Lead =  dbConnections.db2!.models.Lead ||  dbConnections.db2!.model<ILead>("Lead", leadSchema);
 export default Lead;

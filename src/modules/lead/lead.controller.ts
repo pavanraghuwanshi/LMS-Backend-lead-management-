@@ -121,6 +121,70 @@ export const getLeads = async (req: AuthRequest, res: Response) => {
   }
 };
 
+//  Leads DropDown Api
+
+export const getLeadDropdown = async (
+  req: AuthRequest,
+  res: Response
+) => {
+  try {
+    const user = req.user;
+
+    if (!user) {
+      return res.status(401).json({
+        message: "Unauthorized",
+      });
+    }
+
+    // ✅ pagination
+    let { page = 1, limit = 10, search = "" } = req.query as any;
+
+    page = parseInt(page);
+    limit = parseInt(limit);
+
+    const skip = (page - 1) * limit;
+
+    // 🔥 role based filter
+    const filter: any = buildLeadFilter(user, req.query);
+
+    // 🔍 search only on leadTitle
+    if (search) {
+      filter.leadTitle = {
+        $regex: search,
+        $options: "i",
+      };
+    }
+
+    const [leads, total] = await Promise.all([
+      Lead.find(filter)
+        .select("_id leadTitle")
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+
+      Lead.countDocuments(filter),
+    ]);
+
+    return res.status(200).json({
+      message: "Lead dropdown fetched successfully",
+      data: leads,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    });
+
+  } catch (error: any) {
+    return res.status(500).json({
+      message: "Error fetching lead dropdown",
+      error: error.message,
+    });
+  }
+};
+
 
 // Get Single leads by id
 export const getLeadById = async (req: AuthRequest, res: Response) => {

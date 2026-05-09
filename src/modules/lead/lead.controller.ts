@@ -50,10 +50,15 @@ export const getLeads = async (req: AuthRequest, res: Response) => {
     const user = req.user;
 
     if (!user) {
-      return res.status(401).json({ message: "Unauthorized" });
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized",
+      });
     }
 
-    // 🔢 Pagination
+    // =========================
+    // Pagination
+    // =========================
     let { page = 1, limit = 10, search = "" } = req.query as any;
 
     page = parseInt(page);
@@ -61,50 +66,212 @@ export const getLeads = async (req: AuthRequest, res: Response) => {
 
     const skip = (page - 1) * limit;
 
-    // 🔥 Role-based filter
-    let filter = buildLeadFilter(user, req.query);
+    // =========================
+    // Base Filter
+    // =========================
+    let filter: any = buildLeadFilter(user, req.query);
 
-    // 🔍 Search
-    if (search) {
-      filter.$or = [
-        { clientName: { $regex: search, $options: "i" } },
-        { clientEmail: { $regex: search, $options: "i" } },
-        { clientPhone: { $regex: search, $options: "i" } },
-        { shopName: { $regex: search, $options: "i" } },
-      ];
+    // =========================
+    // Aggregation Pipeline
+    // =========================
+    const pipeline: any[] = [
+      {
+        $match: filter,
+      },
+
+      // =========================
+      // Client Lookup
+      // =========================
+      {
+        $lookup: {
+          from: "clients",
+          localField: "clientId",
+          foreignField: "_id",
+          as: "clientId",
+        },
+      },
+      {
+        $unwind: {
+          path: "$clientId",
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+
+      // =========================
+      // Company Lookup
+      // =========================
+      {
+        $lookup: {
+          from: "companies",
+          localField: "companyId",
+          foreignField: "_id",
+          as: "companyId",
+        },
+      },
+      {
+        $unwind: {
+          path: "$companyId",
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+
+      // =========================
+      // Branch Lookup
+      // =========================
+      {
+        $lookup: {
+          from: "branches",
+          localField: "branchId",
+          foreignField: "_id",
+          as: "branchId",
+        },
+      },
+      {
+        $unwind: {
+          path: "$branchId",
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+
+      // =========================
+      // Supervisor Lookup
+      // =========================
+      {
+        $lookup: {
+          from: "supervisors",
+          localField: "supervisorId",
+          foreignField: "_id",
+          as: "supervisorId",
+        },
+      },
+      {
+        $unwind: {
+          path: "$supervisorId",
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+
+      // =========================
+      // Salesman Lookup
+      // =========================
+      {
+        $lookup: {
+          from: "salesmen",
+          localField: "salesmanId",
+          foreignField: "_id",
+          as: "salesmanId",
+        },
+      },
+      {
+        $unwind: {
+          path: "$salesmanId",
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+    ];
+
+    // =========================
+    // Search
+    // =========================
+    if (search && search.trim() !== "") {
+      pipeline.push({
+        $match: {
+          $or: [
+            {
+              leadTitle: {
+                $regex: search,
+                $options: "i",
+              },
+            },
+            {
+              "clientId.clientName": {
+                $regex: search,
+                $options: "i",
+              },
+            },
+          ],
+        },
+      });
     }
 
-    const [leads, total] = await Promise.all([
-      Lead.find(filter)
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(limit)
-        .populate("clientId","clientName email phone address")
-        .populate({
-        path: "companyId",
-        model: Company,
-        select: "companyName",
-      })
-        .populate({
-        path: "branchId",
-        model: Branch,
-        select: "branchName",
-      })
-      .populate({
-        path: "supervisorId",
-        model: Supervisor,
-        select: "supervisorName",
-      })
-      .populate({
-        path: "salesmanId",
-        model: Salesman,
-        select: "salesmanName",
-      }),
+    // =========================
+    // Total Count
+    // =========================
+    const totalData = await Lead.aggregate([
+      ...pipeline,
+      {
+        $count: "total",
+      },
+    ]);
 
-      Lead.countDocuments(filter),
+    const total = totalData[0]?.total || 0;
+
+    // =========================
+    // Data Fetch
+    // =========================
+    const leads = await Lead.aggregate([
+      ...pipeline,
+
+      {
+        $sort: {
+          createdAt: -1,
+        },
+      },
+
+      {
+        $skip: skip,
+      },
+
+      {
+        $limit: limit,
+      },
+
+      // =========================
+      // Same Populate Format
+      // =========================
+      {
+        $project: {
+          leadTitle: 1,
+          clientName: 1,
+          clientEmail: 1,
+          clientPhone: 1,
+          shopName: 1,
+          status: 1,
+          createdAt: 1,
+
+          clientId: {
+            _id: "$clientId._id",
+            clientName: "$clientId.clientName",
+            email: "$clientId.email",
+            phone: "$clientId.phone",
+            address: "$clientId.address",
+          },
+
+          companyId: {
+            _id: "$companyId._id",
+            companyName: "$companyId.companyName",
+          },
+
+          branchId: {
+            _id: "$branchId._id",
+            branchName: "$branchId.branchName",
+          },
+
+          supervisorId: {
+            _id: "$supervisorId._id",
+            supervisorName: "$supervisorId.supervisorName",
+          },
+
+          salesmanId: {
+            _id: "$salesmanId._id",
+            salesmanName: "$salesmanId.salesmanName",
+          },
+        },
+      },
     ]);
 
     return res.status(200).json({
+      success: true,
       message: "Leads fetched successfully",
       data: leads,
       pagination: {
@@ -115,7 +282,8 @@ export const getLeads = async (req: AuthRequest, res: Response) => {
       },
     });
   } catch (error: any) {
-    return res.status(500).json({
+    return res.status(400).json({
+      success: false,
       message: "Error fetching leads",
       error: error.message,
     });

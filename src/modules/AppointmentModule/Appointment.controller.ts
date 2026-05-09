@@ -55,71 +55,252 @@ export const getNotAssignedLeadGen = async (req: AuthRequest, res: Response) => 
 export const getAppointments = async (req: AuthRequest, res: Response) => {
   try {
     const user = req.user;
-    if (!user) return res.status(401).json({ message: "Unauthorized" });
 
-    let { page = 1, limit = 10, search = "", startDate, endDate } = req.query as any;
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized",
+      });
+    }
 
-    page = parseInt(page);
-    limit = parseInt(limit);
+    let {
+      page = 1,
+      limit = 10,
+      search = "",
+      startDate,
+      endDate,
+    } = req.query as any;
+
+    page = Number(page) || 1;
+    limit = Number(limit) || 10;
+
     const skip = (page - 1) * limit;
 
-    let filter: any = buildLeadFilter(user, req.query);
+    // =====================================
+    // BASE FILTER
+    // =====================================
+    const filter: any = buildLeadFilter(user, req.query);
 
+    // =====================================
     // DATE FILTER
+    // =====================================
     if (startDate || endDate) {
       filter.meetingDate = {};
-      if (startDate) filter.meetingDate.$gte = new Date(startDate);
-      if (endDate) filter.meetingDate.$lte = new Date(endDate);
-    }
 
-    // SEARCH
-    if (search) {
-      const regex = new RegExp(search, "i");
-      filter.$or = [
-        { clientName: regex },
-        { clientEmail: regex },
-        { shopName: regex },
-        { meetingType: regex },
-        { status: regex },
-      ];
-    }
-const [appointments, total] = await Promise.all([
-  Appointment.find(filter)
-    .sort({ meetingDate: -1 })
-    .skip(skip)
-    .limit(limit)
-    .populate({
-      path: "leadId",
-      select: "leadTitle clientId",
-      populate: {
-        path: "clientId",
-        select: "clientName" 
+      if (startDate) {
+        filter.meetingDate.$gte = new Date(startDate);
       }
-    })
-    .populate({
-      path: "companyId",
-      model: Company,
-      select: "companyName",
-    })
-    .populate({
-      path: "branchId",
-      model: Branch,
-      select: "branchName",
-    })
-    .populate({
-      path: "supervisorId",
-      model: Supervisor,
-      select: "supervisorName",
-    })
-    .populate({
-      path: "salesmanId",
-      model: Salesman,
-      select: "salesmanName",
-    }),
-  Appointment.countDocuments(filter),
-]);
 
-    return res.json({
+      if (endDate) {
+        filter.meetingDate.$lte = new Date(endDate);
+      }
+    }
+
+    const pipeline: any[] = [
+      {
+        $match: filter,
+      },
+
+      // =====================================
+      // LEAD LOOKUP
+      // =====================================
+      {
+        $lookup: {
+          from: "leads",
+          localField: "leadId",
+          foreignField: "_id",
+          as: "leadId",
+        },
+      },
+      {
+        $unwind: {
+          path: "$leadId",
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+
+      // =====================================
+      // CLIENT LOOKUP
+      // =====================================
+      {
+        $lookup: {
+          from: "clients",
+          localField: "leadId.clientId",
+          foreignField: "_id",
+          as: "clientData",
+        },
+      },
+      {
+        $unwind: {
+          path: "$clientData",
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+    ];
+
+    // =====================================
+    // SEARCH
+    // =====================================
+    if (search && search.trim() !== "") {
+      const searchWords = search
+        .trim()
+        .split(" ")
+        .filter(Boolean);
+
+      pipeline.push({
+        $match: {
+          $or: [
+            {
+              $and: searchWords.map((word: string) => ({
+                "leadId.leadTitle": {
+                  $regex: word,
+                  $options: "i",
+                },
+              })),
+            },
+
+            {
+              $and: searchWords.map((word: string) => ({
+                "clientData.clientName": {
+                  $regex: word,
+                  $options: "i",
+                },
+              })),
+            },
+          ],
+        },
+      });
+    }
+
+    pipeline.push(
+      // =====================================
+      // RESTORE RESPONSE FORMAT
+      // =====================================
+      {
+        $addFields: {
+          "leadId.clientId": {
+            _id: "$clientData._id",
+            clientName: "$clientData.clientName",
+          },
+        },
+      },
+
+      {
+        $project: {
+          clientData: 0,
+        },
+      },
+
+      // =====================================
+      // COMPANY LOOKUP
+      // =====================================
+      {
+        $lookup: {
+          from: "companies",
+          localField: "companyId",
+          foreignField: "_id",
+          as: "companyId",
+        },
+      },
+      {
+        $unwind: {
+          path: "$companyId",
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+
+      // =====================================
+      // BRANCH LOOKUP
+      // =====================================
+      {
+        $lookup: {
+          from: "branches",
+          localField: "branchId",
+          foreignField: "_id",
+          as: "branchId",
+        },
+      },
+      {
+        $unwind: {
+          path: "$branchId",
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+
+      // =====================================
+      // SUPERVISOR LOOKUP
+      // =====================================
+      {
+        $lookup: {
+          from: "supervisors",
+          localField: "supervisorId",
+          foreignField: "_id",
+          as: "supervisorId",
+        },
+      },
+      {
+        $unwind: {
+          path: "$supervisorId",
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+
+      // =====================================
+      // SALESMAN LOOKUP
+      // =====================================
+      {
+        $lookup: {
+          from: "salesmen",
+          localField: "salesmanId",
+          foreignField: "_id",
+          as: "salesmanId",
+        },
+      },
+      {
+        $unwind: {
+          path: "$salesmanId",
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+
+      // =====================================
+      // SORT
+      // =====================================
+      {
+        $sort: {
+          meetingDate: -1,
+        },
+      },
+
+      // =====================================
+      // PAGINATION
+      // =====================================
+      {
+        $facet: {
+          data: [
+            {
+              $skip: skip,
+            },
+            {
+              $limit: limit,
+            },
+          ],
+          total: [
+            {
+              $count: "count",
+            },
+          ],
+        },
+      }
+    );
+    console.log(pipeline,"pipelinepipeline")
+
+    const result = await Appointment.aggregate(pipeline);
+
+    const appointments = result[0]?.data || [];
+    const total = result[0]?.total?.[0]?.count || 0;
+
+    return res.status(200).json({
       success: true,
       data: appointments,
       pagination: {
@@ -130,7 +311,10 @@ const [appointments, total] = await Promise.all([
       },
     });
   } catch (error: any) {
-    return res.status(500).json({ message: error.message });
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
   }
 };
 

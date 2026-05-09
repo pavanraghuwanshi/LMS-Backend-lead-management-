@@ -10,6 +10,7 @@ import Company from "../../RocketsalesModels/Company";
 import Branch from "../../RocketsalesModels/Branch";
 import Supervisor from "../../RocketsalesModels/Supervisor";
 import Salesman from "../../RocketsalesModels/Salesman";
+import mongoose from "mongoose";
 
 
 
@@ -82,6 +83,25 @@ export const getAppointments = async (req: AuthRequest, res: Response) => {
     const filter: any = buildLeadFilter(user, req.query);
 
     // =====================================
+    // FIX OBJECT ID ISSUE
+    // =====================================
+    if (filter.companyId) {
+      filter.companyId = new mongoose.Types.ObjectId(filter.companyId);
+    }
+
+    if (filter.branchId) {
+      filter.branchId = new mongoose.Types.ObjectId(filter.branchId);
+    }
+
+    if (filter.supervisorId) {
+      filter.supervisorId = new mongoose.Types.ObjectId(filter.supervisorId);
+    }
+
+    if (filter.salesmanId) {
+      filter.salesmanId = new mongoose.Types.ObjectId(filter.salesmanId);
+    }
+
+    // =====================================
     // DATE FILTER
     // =====================================
     if (startDate || endDate) {
@@ -107,8 +127,23 @@ export const getAppointments = async (req: AuthRequest, res: Response) => {
       {
         $lookup: {
           from: "leads",
-          localField: "leadId",
-          foreignField: "_id",
+          let: { leadId: "$leadId" },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $eq: ["$_id", "$$leadId"],
+                },
+              },
+            },
+            {
+              $project: {
+                _id: 1,
+                leadTitle: 1,
+                clientId: 1,
+              },
+            },
+          ],
           as: "leadId",
         },
       },
@@ -125,8 +160,22 @@ export const getAppointments = async (req: AuthRequest, res: Response) => {
       {
         $lookup: {
           from: "clients",
-          localField: "leadId.clientId",
-          foreignField: "_id",
+          let: { clientId: "$leadId.clientId" },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $eq: ["$_id", "$$clientId"],
+                },
+              },
+            },
+            {
+              $project: {
+                _id: 1,
+                clientName: 1,
+              },
+            },
+          ],
           as: "clientData",
         },
       },
@@ -174,7 +223,7 @@ export const getAppointments = async (req: AuthRequest, res: Response) => {
 
     pipeline.push(
       // =====================================
-      // RESTORE RESPONSE FORMAT
+      // SET CLIENT INSIDE LEAD
       // =====================================
       {
         $addFields: {
@@ -188,78 +237,6 @@ export const getAppointments = async (req: AuthRequest, res: Response) => {
       {
         $project: {
           clientData: 0,
-        },
-      },
-
-      // =====================================
-      // COMPANY LOOKUP
-      // =====================================
-      {
-        $lookup: {
-          from: "companies",
-          localField: "companyId",
-          foreignField: "_id",
-          as: "companyId",
-        },
-      },
-      {
-        $unwind: {
-          path: "$companyId",
-          preserveNullAndEmptyArrays: true,
-        },
-      },
-
-      // =====================================
-      // BRANCH LOOKUP
-      // =====================================
-      {
-        $lookup: {
-          from: "branches",
-          localField: "branchId",
-          foreignField: "_id",
-          as: "branchId",
-        },
-      },
-      {
-        $unwind: {
-          path: "$branchId",
-          preserveNullAndEmptyArrays: true,
-        },
-      },
-
-      // =====================================
-      // SUPERVISOR LOOKUP
-      // =====================================
-      {
-        $lookup: {
-          from: "supervisors",
-          localField: "supervisorId",
-          foreignField: "_id",
-          as: "supervisorId",
-        },
-      },
-      {
-        $unwind: {
-          path: "$supervisorId",
-          preserveNullAndEmptyArrays: true,
-        },
-      },
-
-      // =====================================
-      // SALESMAN LOOKUP
-      // =====================================
-      {
-        $lookup: {
-          from: "salesmen",
-          localField: "salesmanId",
-          foreignField: "_id",
-          as: "salesmanId",
-        },
-      },
-      {
-        $unwind: {
-          path: "$salesmanId",
-          preserveNullAndEmptyArrays: true,
         },
       },
 
@@ -293,7 +270,6 @@ export const getAppointments = async (req: AuthRequest, res: Response) => {
         },
       }
     );
-    console.log(pipeline,"pipelinepipeline")
 
     const result = await Appointment.aggregate(pipeline);
 
@@ -311,7 +287,7 @@ export const getAppointments = async (req: AuthRequest, res: Response) => {
       },
     });
   } catch (error: any) {
-    return res.status(500).json({
+    return res.status(400).json({
       success: false,
       message: error.message,
     });

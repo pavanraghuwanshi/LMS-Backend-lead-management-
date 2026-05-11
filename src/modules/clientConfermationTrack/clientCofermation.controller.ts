@@ -8,6 +8,7 @@ import Company from "../../RocketsalesModels/Company";
 import Branch from "../../RocketsalesModels/Branch";
 import Supervisor from "../../RocketsalesModels/Supervisor";
 import Salesman from "../../RocketsalesModels/Salesman";
+import { buildLeadFilter } from "../../utils/hierarchy.util";
 
 interface AuthRequest extends Request {
   user?: any;
@@ -16,206 +17,634 @@ interface AuthRequest extends Request {
 // ==============================
 // GET CLIENT CONFIRMATION
 // ==============================
+// export const getClientConfermation = async (
+//   req: AuthRequest,
+//   res: Response
+// ): Promise<Response | void> => {
+//   try {
+//     const {
+//       role,
+//       id,
+//       companyId,
+//       branchId,
+//     } = req.user;
+
+//     const {
+//       clientFeedback,
+//       clientConfirmation,
+//       installationDateFrom,
+//       installationDateTo,
+//       createdByRole,
+//       search,
+//       page = 1,
+//       limit = 10,
+//     } = req.query;
+
+//     const pageNumber = Number(page) || 1;
+//     const limitNumber = Number(limit) || 10;
+//     const skip = (pageNumber - 1) * limitNumber;
+
+//     let query: any = {};
+
+//     // =======================================
+//     // ROLE BASED FILTER
+//     // =======================================
+//     switch (role) {
+//       case "superadmin":
+//         break;
+
+//       case "company":
+//         query.companyId = id;
+//         break;
+
+//       case "branch":
+//         query.branchId = id;
+//         break;
+
+//       case "supervisor":
+//       case "salesman":
+//         query.branchId = branchId;
+//         break;
+
+//       default:
+//         return res.status(403).json({
+//           success: false,
+//           message: "Role not allowed",
+//         });
+//     }
+
+//     // =======================================
+//     // FIELD FILTERS
+//     // =======================================
+//     if (clientFeedback) {
+//       query.clientFeedback = {
+//         $regex: clientFeedback,
+//         $options: "i",
+//       };
+//     }
+
+//     if (clientConfirmation) {
+//       query.clientConfirmation = clientConfirmation;
+//     }
+
+//     if (createdByRole) {
+//       query.createdByRole = createdByRole;
+//     }
+
+//     // =======================================
+//     // DATE FILTER
+//     // =======================================
+//     if (installationDateFrom || installationDateTo) {
+//       query.installationDate = {};
+
+//       if (installationDateFrom) {
+//         query.installationDate.$gte = new Date(
+//           installationDateFrom as string
+//         );
+//       }
+
+//       if (installationDateTo) {
+//         query.installationDate.$lte = new Date(
+//           installationDateTo as string
+//         );
+//       }
+//     }
+
+//     // =======================================
+//     // SEARCH FILTER
+//     // =======================================
+//     if (search && String(search).trim()) {
+//       const regex = new RegExp(
+//         String(search).trim(),
+//         "i"
+//       );
+
+//       query.$or = [
+//         { clientFeedback: regex },
+//         { clientConfirmation: regex },
+//         { createdByRole: regex },
+//       ];
+//     }
+
+//     // =======================================
+//     // FETCH DATA
+//     // =======================================
+//     const [confirmations, total] = await Promise.all([
+//       ClientConfermation.find(query)
+
+//         .sort({ createdAt: -1 })
+
+//         .skip(skip)
+
+//         .limit(limitNumber)
+
+//         // =======================================
+//         // LEAD + CLIENT
+//         // =======================================
+//         .populate({
+//             path: "leadId",
+//             select: "leadTitle clientId",
+//             populate: {
+//                 path: "clientId",
+//                 select: "clientName" 
+//             }
+//             })
+
+//         // =======================================
+//         // COMPANY
+//         // =======================================
+//         .populate({
+//           path: "companyId",
+//           model: Company,
+//           select: "companyName",
+//         })
+
+//         // =======================================
+//         // BRANCH
+//         // =======================================
+//         .populate({
+//           path: "branchId",
+//           model: Branch,
+//           select: "branchName",
+//         })
+
+//         // =======================================
+//         // SUPERVISOR
+//         // =======================================
+//         .populate({
+//           path: "supervisorId",
+//           model: Supervisor,
+//           select: "supervisorName",
+//         })
+
+//         // =======================================
+//         // SALESMAN
+//         // =======================================
+//         .populate({
+//           path: "salesmanId",
+//           model: Salesman,
+//           select: "salesmanName",
+//         })
+
+//         // =======================================
+//         // APPOINTMENT
+//         // =======================================
+//         .populate("appointmentId","status date",),
+//       ClientConfermation.countDocuments(query),
+//     ]);
+
+//     return res.status(200).json({
+//       success: true,
+//       message:
+//         "Client confirmations fetched successfully",
+//       page: pageNumber,
+//       limit: limitNumber,
+//       total,
+//       totalPages: Math.ceil(
+//         total / limitNumber
+//       ),
+//       data: confirmations,
+//     });
+//   } catch (error: any) {
+//     console.error(
+//       "❌ Error fetching client confirmations:",
+//       error
+//     );
+
+//     return res.status(500).json({
+//       success: false,
+//       message: error.message,
+//     });
+//   }
+// };
+
 export const getClientConfermation = async (
   req: AuthRequest,
   res: Response
 ): Promise<Response | void> => {
   try {
-    const {
-      role,
-      id,
-      companyId,
-      branchId,
-    } = req.user;
+    const user = req.user;
 
-    const {
-      clientFeedback,
-      clientConfirmation,
-      installationDateFrom,
-      installationDateTo,
-      createdByRole,
-      search,
-      page = 1,
-      limit = 10,
-    } = req.query;
-
-    const pageNumber = Number(page) || 1;
-    const limitNumber = Number(limit) || 10;
-    const skip = (pageNumber - 1) * limitNumber;
-
-    let query: any = {};
-
-    // =======================================
-    // ROLE BASED FILTER
-    // =======================================
-    switch (role) {
-      case "superadmin":
-        break;
-
-      case "company":
-        query.companyId = id;
-        break;
-
-      case "branch":
-        query.branchId = id;
-        break;
-
-      case "supervisor":
-      case "salesman":
-        query.branchId = branchId;
-        break;
-
-      default:
-        return res.status(403).json({
-          success: false,
-          message: "Role not allowed",
-        });
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized",
+      });
     }
 
-    // =======================================
-    // FIELD FILTERS
-    // =======================================
+    let {
+      page = 1,
+      limit = 10,
+      search = "",
+      installationDateFrom,
+      installationDateTo,
+      clientFeedback,
+      clientConfirmation,
+      createdByRole,
+    } = req.query as any;
+
+    page = Number(page) || 1;
+    limit = Number(limit) || 10;
+
+    const skip = (page - 1) * limit;
+
+    // =====================================
+    // BASE FILTER
+    // =====================================
+    const filter: any = buildLeadFilter(
+      user,
+      req.query
+    );
+
+    // =====================================
+    // FIX OBJECT ID ISSUE
+    // =====================================
+    if (filter.companyId) {
+      filter.companyId =
+        new mongoose.Types.ObjectId(
+          filter.companyId
+        );
+    }
+
+    if (filter.branchId) {
+      filter.branchId =
+        new mongoose.Types.ObjectId(
+          filter.branchId
+        );
+    }
+
+    if (filter.supervisorId) {
+      filter.supervisorId =
+        new mongoose.Types.ObjectId(
+          filter.supervisorId
+        );
+    }
+
+    if (filter.salesmanId) {
+      filter.salesmanId =
+        new mongoose.Types.ObjectId(
+          filter.salesmanId
+        );
+    }
+
+    // =====================================
+    // OTHER FILTERS
+    // =====================================
     if (clientFeedback) {
-      query.clientFeedback = {
+      filter.clientFeedback = {
         $regex: clientFeedback,
         $options: "i",
       };
     }
 
     if (clientConfirmation) {
-      query.clientConfirmation = clientConfirmation;
+      filter.clientConfirmation =
+        clientConfirmation;
     }
 
     if (createdByRole) {
-      query.createdByRole = createdByRole;
+      filter.createdByRole = createdByRole;
     }
 
-    // =======================================
+    // =====================================
     // DATE FILTER
-    // =======================================
-    if (installationDateFrom || installationDateTo) {
-      query.installationDate = {};
+    // =====================================
+    if (
+      installationDateFrom ||
+      installationDateTo
+    ) {
+      filter.installationDate = {};
 
       if (installationDateFrom) {
-        query.installationDate.$gte = new Date(
-          installationDateFrom as string
-        );
+        filter.installationDate.$gte =
+          new Date(
+            installationDateFrom
+          );
       }
 
       if (installationDateTo) {
-        query.installationDate.$lte = new Date(
-          installationDateTo as string
-        );
+        filter.installationDate.$lte =
+          new Date(
+            installationDateTo
+          );
       }
     }
 
-    // =======================================
-    // SEARCH FILTER
-    // =======================================
-    if (search && String(search).trim()) {
-      const regex = new RegExp(
-        String(search).trim(),
-        "i"
-      );
+    // =====================================
+    // PIPELINE
+    // =====================================
+    const pipeline: any[] = [
+      {
+        $match: filter,
+      },
 
-      query.$or = [
-        { clientFeedback: regex },
-        { clientConfirmation: regex },
-        { createdByRole: regex },
-      ];
+      // =====================================
+      // LEAD LOOKUP
+      // =====================================
+      {
+        $lookup: {
+          from: "leads",
+          let: { leadId: "$leadId" },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $eq: [
+                    "$_id",
+                    "$$leadId",
+                  ],
+                },
+              },
+            },
+            {
+              $project: {
+                _id: 1,
+                leadTitle: 1,
+                clientId: 1,
+              },
+            },
+          ],
+          as: "leadId",
+        },
+      },
+
+      {
+        $unwind: {
+          path: "$leadId",
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+
+      // =====================================
+      // CLIENT LOOKUP
+      // =====================================
+      {
+        $lookup: {
+          from: "clients",
+          let: {
+            clientId:
+              "$leadId.clientId",
+          },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $eq: [
+                    "$_id",
+                    "$$clientId",
+                  ],
+                },
+              },
+            },
+            {
+              $project: {
+                _id: 1,
+                clientName: 1,
+              },
+            },
+          ],
+          as: "clientData",
+        },
+      },
+
+      {
+        $unwind: {
+          path: "$clientData",
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+
+      // =====================================
+      // COMPANY LOOKUP
+      // =====================================
+      {
+        $lookup: {
+          from: "companies",
+          localField: "companyId",
+          foreignField: "_id",
+          as: "companyId",
+        },
+      },
+
+      {
+        $unwind: {
+          path: "$companyId",
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+
+      // =====================================
+      // BRANCH LOOKUP
+      // =====================================
+      {
+        $lookup: {
+          from: "branches",
+          localField: "branchId",
+          foreignField: "_id",
+          as: "branchId",
+        },
+      },
+
+      {
+        $unwind: {
+          path: "$branchId",
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+
+      // =====================================
+      // SUPERVISOR LOOKUP
+      // =====================================
+      {
+        $lookup: {
+          from: "supervisors",
+          localField: "supervisorId",
+          foreignField: "_id",
+          as: "supervisorId",
+        },
+      },
+
+      {
+        $unwind: {
+          path: "$supervisorId",
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+
+      // =====================================
+      // SALESMAN LOOKUP
+      // =====================================
+      {
+        $lookup: {
+          from: "salesmen",
+          localField: "salesmanId",
+          foreignField: "_id",
+          as: "salesmanId",
+        },
+      },
+
+      {
+        $unwind: {
+          path: "$salesmanId",
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+
+      // =====================================
+      // APPOINTMENT LOOKUP
+      // =====================================
+      {
+        $lookup: {
+          from: "appointments",
+          localField: "appointmentId",
+          foreignField: "_id",
+          as: "appointmentId",
+        },
+      },
+
+      {
+        $unwind: {
+          path: "$appointmentId",
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+    ];
+
+    // =====================================
+    // SEARCH
+    // =====================================
+    if (
+      search &&
+      search.trim() !== ""
+    ) {
+      const searchWords = search
+        .trim()
+        .split(" ")
+        .filter(Boolean);
+
+      pipeline.push({
+        $match: {
+          $or: [
+            {
+              $and: searchWords.map(
+                (word: string) => ({
+                  "leadId.leadTitle": {
+                    $regex: word,
+                    $options: "i",
+                  },
+                })
+              ),
+            },
+
+            {
+              $and: searchWords.map(
+                (word: string) => ({
+                  "clientData.clientName":
+                    {
+                      $regex: word,
+                      $options: "i",
+                    },
+                })
+              ),
+            },
+          ],
+        },
+      });
     }
 
-    // =======================================
-    // FETCH DATA
-    // =======================================
-    const [confirmations, total] = await Promise.all([
-      ClientConfermation.find(query)
+    // =====================================
+    // SET CLIENT INSIDE LEAD
+    // =====================================
+    pipeline.push(
+      {
+        $addFields: {
+          "leadId.clientId": {
+            _id: "$clientData._id",
+            clientName:
+              "$clientData.clientName",
+          },
+        },
+      },
 
-        .sort({ createdAt: -1 })
+      {
+        $project: {
+          clientData: 0,
+        },
+      },
 
-        .skip(skip)
+      // =====================================
+      // SORT
+      // =====================================
+      {
+        $sort: {
+          createdAt: -1,
+        },
+      },
 
-        .limit(limitNumber)
+      // =====================================
+      // PAGINATION
+      // =====================================
+      {
+        $facet: {
+          data: [
+            {
+              $skip: skip,
+            },
+            {
+              $limit: limit,
+            },
+          ],
 
-        // =======================================
-        // LEAD + CLIENT
-        // =======================================
-        .populate({
-            path: "leadId",
-            select: "leadTitle clientId",
-            populate: {
-                path: "clientId",
-                select: "clientName" 
-            }
-            })
+          total: [
+            {
+              $count: "count",
+            },
+          ],
+        },
+      }
+    );
 
-        // =======================================
-        // COMPANY
-        // =======================================
-        .populate({
-          path: "companyId",
-          model: Company,
-          select: "companyName",
-        })
+    // =====================================
+    // EXECUTE
+    // =====================================
+    const result =
+      await ClientConfermation.aggregate(
+        pipeline
+      );
 
-        // =======================================
-        // BRANCH
-        // =======================================
-        .populate({
-          path: "branchId",
-          model: Branch,
-          select: "branchName",
-        })
+    const confirmations =
+      result[0]?.data || [];
 
-        // =======================================
-        // SUPERVISOR
-        // =======================================
-        .populate({
-          path: "supervisorId",
-          model: Supervisor,
-          select: "supervisorName",
-        })
-
-        // =======================================
-        // SALESMAN
-        // =======================================
-        .populate({
-          path: "salesmanId",
-          model: Salesman,
-          select: "salesmanName",
-        })
-
-        // =======================================
-        // APPOINTMENT
-        // =======================================
-        .populate("appointmentId","status date",),
-      ClientConfermation.countDocuments(query),
-    ]);
+    const total =
+      result[0]?.total?.[0]?.count || 0;
 
     return res.status(200).json({
       success: true,
       message:
         "Client confirmations fetched successfully",
-      page: pageNumber,
-      limit: limitNumber,
-      total,
-      totalPages: Math.ceil(
-        total / limitNumber
-      ),
       data: confirmations,
+
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(
+          total / limit
+        ),
+      },
     });
   } catch (error: any) {
-    console.error(
-      "❌ Error fetching client confirmations:",
+    console.log(
+      "❌ ERROR GET CLIENT CONFIRMATION:",
       error
     );
 
-    return res.status(500).json({
+    return res.status(400).json({
       success: false,
       message: error.message,
     });
   }
-};
+}
 
 // ==============================
 // CREATE CLIENT CONFIRMATION

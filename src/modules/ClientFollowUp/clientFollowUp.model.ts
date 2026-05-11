@@ -33,5 +33,5 @@ const FollowUpSchema = new Schema<IFollowUp>(
   { timestamps: true }
 );
 
-const FollowUp =  dbConnections.db2!.models.FollowUp ||  dbConnections.db2!.model<IFollowUp>("FollowUp", FollowUpSchema);
+const FollowUp =  dbConnections.db1!.models.FollowUp ||  dbConnections.db2!.model<IFollowUp>("FollowUp", FollowUpSchema);
 export default FollowUp;

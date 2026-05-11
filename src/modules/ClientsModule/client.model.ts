@@ -30,6 +30,6 @@ const ClientSchema = new Schema<IClient>(
   },
   { timestamps: true }
 );
-const Client =  dbConnections.db2!.models.Client ||  dbConnections.db2!.model<IClient>("Client", ClientSchema);
+const Client =  dbConnections.db1!.models.Client ||  dbConnections.db2!.model<IClient>("Client", ClientSchema);
 
 export default Client;

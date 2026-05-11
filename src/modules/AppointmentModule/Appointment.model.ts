@@ -99,5 +99,5 @@ const appointmentSchema = new Schema<IAppointment>({
   createdAt: { type: Date, default: Date.now },
 });
 
-const Appointment =  dbConnections.db1!.models.Appointment ||  dbConnections.db2!.model<IAppointment>("Appointment", appointmentSchema);
+const Appointment =  dbConnections.db2!.models.Appointment ||  dbConnections.db2!.model<IAppointment>("Appointment", appointmentSchema);
 export default Appointment;

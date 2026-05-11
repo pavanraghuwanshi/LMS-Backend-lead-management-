@@ -67,21 +67,42 @@ export const getLeads = async (req: AuthRequest, res: Response) => {
     const skip = (page - 1) * limit;
 
     // =========================
-    // Base Filter
+    // Base Filter (NO CHANGE IN HIERARCHY)
     // =========================
-    let filter: any = buildLeadFilter(user, req.query);
+    let rawFilter: any = buildLeadFilter(user, req.query);
+
+    // =========================
+    // ObjectId SAFE FILTER FIX
+    // =========================
+    const filter: any = {};
+
+    Object.keys(rawFilter).forEach((key) => {
+      const value = rawFilter[key];
+
+      if (
+        [
+          "companyId",
+          "branchId",
+          "supervisorId",
+          "salesmanId",
+          "clientId",
+        ].includes(key)
+      ) {
+        filter[key] = mongoose.Types.ObjectId.isValid(value)
+          ? new mongoose.Types.ObjectId(value)
+          : value;
+      } else {
+        filter[key] = value;
+      }
+    });
 
     // =========================
     // Aggregation Pipeline
     // =========================
     const pipeline: any[] = [
-      {
-        $match: filter,
-      },
+      { $match: filter },
 
-      // =========================
-      // Client Lookup
-      // =========================
+      // CLIENT
       {
         $lookup: {
           from: "clients",
@@ -90,16 +111,9 @@ export const getLeads = async (req: AuthRequest, res: Response) => {
           as: "clientId",
         },
       },
-      {
-        $unwind: {
-          path: "$clientId",
-          preserveNullAndEmptyArrays: true,
-        },
-      },
+      { $unwind: { path: "$clientId", preserveNullAndEmptyArrays: true } },
 
-      // =========================
-      // Company Lookup
-      // =========================
+      // COMPANY
       {
         $lookup: {
           from: "companies",
@@ -108,16 +122,9 @@ export const getLeads = async (req: AuthRequest, res: Response) => {
           as: "companyId",
         },
       },
-      {
-        $unwind: {
-          path: "$companyId",
-          preserveNullAndEmptyArrays: true,
-        },
-      },
+      { $unwind: { path: "$companyId", preserveNullAndEmptyArrays: true } },
 
-      // =========================
-      // Branch Lookup
-      // =========================
+      // BRANCH
       {
         $lookup: {
           from: "branches",
@@ -126,16 +133,9 @@ export const getLeads = async (req: AuthRequest, res: Response) => {
           as: "branchId",
         },
       },
-      {
-        $unwind: {
-          path: "$branchId",
-          preserveNullAndEmptyArrays: true,
-        },
-      },
+      { $unwind: { path: "$branchId", preserveNullAndEmptyArrays: true } },
 
-      // =========================
-      // Supervisor Lookup
-      // =========================
+      // SUPERVISOR
       {
         $lookup: {
           from: "supervisors",
@@ -144,16 +144,9 @@ export const getLeads = async (req: AuthRequest, res: Response) => {
           as: "supervisorId",
         },
       },
-      {
-        $unwind: {
-          path: "$supervisorId",
-          preserveNullAndEmptyArrays: true,
-        },
-      },
+      { $unwind: { path: "$supervisorId", preserveNullAndEmptyArrays: true } },
 
-      // =========================
-      // Salesman Lookup
-      // =========================
+      // SALESMAN
       {
         $lookup: {
           from: "salesmen",
@@ -162,16 +155,11 @@ export const getLeads = async (req: AuthRequest, res: Response) => {
           as: "salesmanId",
         },
       },
-      {
-        $unwind: {
-          path: "$salesmanId",
-          preserveNullAndEmptyArrays: true,
-        },
-      },
+      { $unwind: { path: "$salesmanId", preserveNullAndEmptyArrays: true } },
     ];
 
     // =========================
-    // Search
+    // SEARCH (leadTitle + clientName)
     // =========================
     if (search && search.trim() !== "") {
       pipeline.push({
@@ -195,40 +183,25 @@ export const getLeads = async (req: AuthRequest, res: Response) => {
     }
 
     // =========================
-    // Total Count
+    // TOTAL COUNT
     // =========================
     const totalData = await Lead.aggregate([
       ...pipeline,
-      {
-        $count: "total",
-      },
+      { $count: "total" },
     ]);
 
     const total = totalData[0]?.total || 0;
 
     // =========================
-    // Data Fetch
+    // DATA
     // =========================
     const leads = await Lead.aggregate([
       ...pipeline,
 
-      {
-        $sort: {
-          createdAt: -1,
-        },
-      },
+      { $sort: { createdAt: -1 } },
+      { $skip: skip },
+      { $limit: limit },
 
-      {
-        $skip: skip,
-      },
-
-      {
-        $limit: limit,
-      },
-
-      // =========================
-      // Same Populate Format
-      // =========================
       {
         $project: {
           leadTitle: 1,

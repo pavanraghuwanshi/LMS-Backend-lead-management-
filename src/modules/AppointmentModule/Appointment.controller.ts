@@ -594,26 +594,46 @@ export const deleteAppointment = async (req: AuthRequest, res: Response) => {
 
 
 // ✅ Create Client Feedback
-export const createClientFeedback = async (req: AuthRequest, res: Response) => {
+export const createClientFeedback = async (
+  req: AuthRequest,
+  res: Response
+) => {
   try {
     const user = req.user;
-    if (!user) return res.status(401).json({ message: "Unauthorized" });
 
-    const { appointmentId, leadId, clientConfirmation,installationDate } = req.body;
+    if (!user) {
+      return res.status(401).json({
+        message: "Unauthorized",
+      });
+    }
 
-    const appointment = await Appointment.findById(appointmentId)
-                            .populate({
-                              path: "leadId",
-                              select: "clientId -_id",
-                              populate: {
-                                path: "clientId",
-                                select: "clientName -_id",
-                              },
-                            });
+    const {
+      appointmentId,
+      leadId,
+      clientConfirmation,
+      installationDate,
+    } = req.body;
 
-    if (!appointment && !appointment?.leadId.clientId.clientName)
-      return res.status(404).json({ message: "Appointment not found" });
+    const appointment = await Appointment.findById(appointmentId).populate({
+      path: "leadId",
+      select: "clientId status",
+      populate: {
+        path: "clientId",
+        select: "clientName",
+      },
+    });
 
+    if (
+      !appointment ||
+      !appointment?.leadId ||
+      !appointment?.leadId?.clientId
+    ) {
+      return res.status(404).json({
+        message: "Appointment not found",
+      });
+    }
+
+    // ✅ SAVE FEEDBACK
     const feedback = await ClientConfermation.create({
       ...req.body,
       appointmentId,
@@ -625,11 +645,10 @@ export const createClientFeedback = async (req: AuthRequest, res: Response) => {
       createdByRole: user.role,
     });
 
-    // AUTO CLIENT CREATE
+    // ✅ IF CLIENT CONFIRMATION YES
     if (clientConfirmation === "YES") {
-
       await Client.create({
-        clientName: appointment?.leadId.clientId.clientName,
+        clientName: appointment?.leadId?.clientId?.clientName,
         contact: {
           phone: appointment.clientPhone,
           email: appointment.clientEmail,
@@ -639,15 +658,32 @@ export const createClientFeedback = async (req: AuthRequest, res: Response) => {
         leadId,
       });
 
+      // Appointment Completed
       appointment.status = "Completed";
       await appointment.save();
     }
 
+    // ✅ IF CLIENT CONFIRMATION NO
+    if (clientConfirmation === "NO") {
+      // Appointment Completed
+      appointment.status = "Completed";
+      await appointment.save();
+
+      // Lead Cancel
+      await Lead.findByIdAndUpdate(leadId, {
+        status: "Cancelled",
+      });
+    }
+
     return res.status(201).json({
-      message: "Feedback saved",
+      success: true,
+      message: "Feedback saved successfully",
       data: feedback,
     });
   } catch (error: any) {
-    return res.status(500).json({ message: error.message });
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
   }
 };

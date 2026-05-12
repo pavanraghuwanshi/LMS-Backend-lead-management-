@@ -661,6 +661,9 @@ export const createClientFeedback = async (
       // Appointment Completed
       appointment.status = "Completed";
       await appointment.save();
+      await Lead.findByIdAndUpdate(leadId, {
+        status: "Completed",
+      });
     }
 
     // ✅ IF CLIENT CONFIRMATION NO

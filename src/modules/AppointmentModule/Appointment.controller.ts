@@ -53,7 +53,10 @@ export const getNotAssignedLeadGen = async (req: AuthRequest, res: Response) => 
 
 
 // ✅ Get Appointments
-export const getAppointments = async (req: AuthRequest, res: Response) => {
+export const getAppointments = async (
+  req: AuthRequest,
+  res: Response
+) => {
   try {
     const user = req.user;
 
@@ -77,42 +80,50 @@ export const getAppointments = async (req: AuthRequest, res: Response) => {
 
     const skip = (page - 1) * limit;
 
-    // =====================================
-    // BASE FILTER
-    // =====================================
-    const filter: any = buildLeadFilter(user, req.query);
+    const filter: any = buildLeadFilter(
+      user,
+      req.query
+    );
 
-    // =====================================
-    // FIX OBJECT ID ISSUE
-    // =====================================
     if (filter.companyId) {
-      filter.companyId = new mongoose.Types.ObjectId(filter.companyId);
+      filter.companyId = new mongoose.Types.ObjectId(
+        filter.companyId
+      );
     }
 
     if (filter.branchId) {
-      filter.branchId = new mongoose.Types.ObjectId(filter.branchId);
+      filter.branchId = new mongoose.Types.ObjectId(
+        filter.branchId
+      );
     }
 
     if (filter.supervisorId) {
-      filter.supervisorId = new mongoose.Types.ObjectId(filter.supervisorId);
+      filter.supervisorId =
+        new mongoose.Types.ObjectId(
+          filter.supervisorId
+        );
     }
 
     if (filter.salesmanId) {
-      filter.salesmanId = new mongoose.Types.ObjectId(filter.salesmanId);
+      filter.salesmanId =
+        new mongoose.Types.ObjectId(
+          filter.salesmanId
+        );
     }
 
-    // =====================================
-    // DATE FILTER
-    // =====================================
     if (startDate || endDate) {
       filter.meetingDate = {};
 
       if (startDate) {
-        filter.meetingDate.$gte = new Date(startDate);
+        filter.meetingDate.$gte = new Date(
+          startDate
+        );
       }
 
       if (endDate) {
-        filter.meetingDate.$lte = new Date(endDate);
+        filter.meetingDate.$lte = new Date(
+          endDate
+        );
       }
     }
 
@@ -121,9 +132,6 @@ export const getAppointments = async (req: AuthRequest, res: Response) => {
         $match: filter,
       },
 
-      // =====================================
-      // LEAD LOOKUP
-      // =====================================
       {
         $lookup: {
           from: "leads",
@@ -147,6 +155,7 @@ export const getAppointments = async (req: AuthRequest, res: Response) => {
           as: "leadId",
         },
       },
+
       {
         $unwind: {
           path: "$leadId",
@@ -154,9 +163,6 @@ export const getAppointments = async (req: AuthRequest, res: Response) => {
         },
       },
 
-      // =====================================
-      // CLIENT LOOKUP
-      // =====================================
       {
         $lookup: {
           from: "clients",
@@ -179,6 +185,7 @@ export const getAppointments = async (req: AuthRequest, res: Response) => {
           as: "clientData",
         },
       },
+
       {
         $unwind: {
           path: "$clientData",
@@ -187,9 +194,6 @@ export const getAppointments = async (req: AuthRequest, res: Response) => {
       },
     ];
 
-    // =====================================
-    // SEARCH
-    // =====================================
     if (search && search.trim() !== "") {
       const searchWords = search
         .trim()
@@ -200,21 +204,25 @@ export const getAppointments = async (req: AuthRequest, res: Response) => {
         $match: {
           $or: [
             {
-              $and: searchWords.map((word: string) => ({
-                "leadId.leadTitle": {
-                  $regex: word,
-                  $options: "i",
-                },
-              })),
+              $and: searchWords.map(
+                (word: string) => ({
+                  "leadId.leadTitle": {
+                    $regex: word,
+                    $options: "i",
+                  },
+                })
+              ),
             },
 
             {
-              $and: searchWords.map((word: string) => ({
-                "clientData.clientName": {
-                  $regex: word,
-                  $options: "i",
-                },
-              })),
+              $and: searchWords.map(
+                (word: string) => ({
+                  "clientData.clientName": {
+                    $regex: word,
+                    $options: "i",
+                  },
+                })
+              ),
             },
           ],
         },
@@ -222,36 +230,12 @@ export const getAppointments = async (req: AuthRequest, res: Response) => {
     }
 
     pipeline.push(
-      // =====================================
-      // SET CLIENT INSIDE LEAD
-      // =====================================
-      {
-        $addFields: {
-          "leadId.clientId": {
-            _id: "$clientData._id",
-            clientName: "$clientData.clientName",
-          },
-        },
-      },
-
-      {
-        $project: {
-          clientData: 0,
-        },
-      },
-
-      // =====================================
-      // SORT
-      // =====================================
       {
         $sort: {
           meetingDate: -1,
         },
       },
 
-      // =====================================
-      // PAGINATION
-      // =====================================
       {
         $facet: {
           data: [
@@ -262,6 +246,7 @@ export const getAppointments = async (req: AuthRequest, res: Response) => {
               $limit: limit,
             },
           ],
+
           total: [
             {
               $count: "count",
@@ -271,14 +256,230 @@ export const getAppointments = async (req: AuthRequest, res: Response) => {
       }
     );
 
-    const result = await Appointment.aggregate(pipeline);
+    const result = await Appointment.aggregate(
+      pipeline
+    );
 
-    const appointments = result[0]?.data || [];
-    const total = result[0]?.total?.[0]?.count || 0;
+    const appointments: any[] =
+      result[0]?.data || [];
+
+    const total =
+      result[0]?.total?.[0]?.count || 0;
+
+    const companyIds = [
+      ...new Set(
+        appointments
+          .filter(
+            (x: any) => x.companyId
+          )
+          .map((x: any) =>
+            x.companyId.toString()
+          )
+      ),
+    ].map(
+      (id: string) =>
+        new mongoose.Types.ObjectId(id)
+    );
+
+    const branchIds = [
+      ...new Set(
+        appointments
+          .filter(
+            (x: any) => x.branchId
+          )
+          .map((x: any) =>
+            x.branchId.toString()
+          )
+      ),
+    ].map(
+      (id: string) =>
+        new mongoose.Types.ObjectId(id)
+    );
+
+    const supervisorIds = [
+      ...new Set(
+        appointments
+          .filter(
+            (x: any) => x.supervisorId
+          )
+          .map((x: any) =>
+            x.supervisorId.toString()
+          )
+      ),
+    ].map(
+      (id: string) =>
+        new mongoose.Types.ObjectId(id)
+    );
+
+    const salesmanIds = [
+      ...new Set(
+        appointments
+          .filter(
+            (x: any) => x.salesmanId
+          )
+          .map((x: any) =>
+            x.salesmanId.toString()
+          )
+      ),
+    ].map(
+      (id: string) =>
+        new mongoose.Types.ObjectId(id)
+    );
+
+    const companies: any[] =
+      await Company.find(
+        {
+          _id: { $in: companyIds },
+        },
+        {
+          companyName: 1,
+        }
+      ).lean();
+
+    const branches: any[] =
+      await Branch.find(
+        {
+          _id: { $in: branchIds },
+        },
+        {
+          branchName: 1,
+        }
+      ).lean();
+
+    const supervisors: any[] =
+      await Supervisor.find(
+        {
+          _id: { $in: supervisorIds },
+        },
+        {
+          supervisorName: 1,
+        }
+      ).lean();
+
+    const salesmen: any[] =
+      await Salesman.find(
+        {
+          _id: { $in: salesmanIds },
+        },
+        {
+          salesmanName: 1,
+        }
+      ).lean();
+
+    const companyMap = new Map(
+      companies.map((x: any) => [
+        x._id.toString(),
+        x.companyName,
+      ])
+    );
+
+    const branchMap = new Map(
+      branches.map((x: any) => [
+        x._id.toString(),
+        x.branchName,
+      ])
+    );
+
+    const supervisorMap = new Map(
+      supervisors.map((x: any) => [
+        x._id.toString(),
+        x.supervisorName,
+      ])
+    );
+
+    const salesmanMap = new Map(
+      salesmen.map((x: any) => [
+        x._id.toString(),
+        x.salesmanName,
+      ])
+    );
+
+    const finalAppointments =
+      appointments.map((appointment: any) => {
+        return {
+          ...appointment,
+
+          leadId: appointment.leadId
+            ? {
+                _id: appointment.leadId._id,
+
+                leadTitle:
+                  appointment.leadId
+                    .leadTitle,
+
+                clientId:
+                  appointment.clientData
+                    ? {
+                        _id:
+                          appointment
+                            .clientData
+                            ._id,
+
+                        clientName:
+                          appointment
+                            .clientData
+                            .clientName,
+                      }
+                    : null,
+              }
+            : null,
+
+          companyId: appointment.companyId
+            ? {
+                _id:
+                  appointment.companyId,
+
+                companyName:
+                  companyMap.get(
+                    appointment.companyId.toString()
+                  ) || "",
+              }
+            : null,
+
+          branchId: appointment.branchId
+            ? {
+                _id:
+                  appointment.branchId,
+
+                branchName:
+                  branchMap.get(
+                    appointment.branchId.toString()
+                  ) || "",
+              }
+            : null,
+
+          supervisorId:
+            appointment.supervisorId
+              ? {
+                  _id:
+                    appointment.supervisorId,
+
+                  supervisorName:
+                    supervisorMap.get(
+                      appointment.supervisorId.toString()
+                    ) || "",
+                }
+              : null,
+
+          salesmanId:
+            appointment.salesmanId
+              ? {
+                  _id:
+                    appointment.salesmanId,
+
+                  salesmanName:
+                    salesmanMap.get(
+                      appointment.salesmanId.toString()
+                    ) || "",
+                }
+              : null,
+        };
+      });
 
     return res.status(200).json({
       success: true,
-      data: appointments,
+      data: finalAppointments,
+
       pagination: {
         total,
         page,

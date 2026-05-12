@@ -9,6 +9,7 @@ import Supervisor from "../../RocketsalesModels/Supervisor";
 import Salesman from "../../RocketsalesModels/Salesman";
 
 import {buildLeadFilter, buildHierarchyData } from "../../utils/hierarchy.util";
+import Client from "../ClientsModule/client.model";
 
 
 export const createLead = async (req: AuthRequest, res: Response) => {
@@ -45,7 +46,10 @@ export const createLead = async (req: AuthRequest, res: Response) => {
 
 
 //  Get All Leads With Pagination
-export const getLeads = async (req: AuthRequest, res: Response) => {
+export const getLeads = async (
+  req: AuthRequest,
+  res: Response
+) => {
   try {
     const user = req.user;
 
@@ -56,24 +60,19 @@ export const getLeads = async (req: AuthRequest, res: Response) => {
       });
     }
 
-    // =========================
-    // Pagination
-    // =========================
-    let { page = 1, limit = 10, search = "" } = req.query as any;
+    let { page = 1, limit = 10, search = "" } =
+      req.query as any;
 
     page = parseInt(page);
     limit = parseInt(limit);
 
     const skip = (page - 1) * limit;
 
-    // =========================
-    // Base Filter (NO CHANGE IN HIERARCHY)
-    // =========================
-    let rawFilter: any = buildLeadFilter(user, req.query);
+    const rawFilter: any = buildLeadFilter(
+      user,
+      req.query
+    );
 
-    // =========================
-    // ObjectId SAFE FILTER FIX
-    // =========================
     const filter: any = {};
 
     Object.keys(rawFilter).forEach((key) => {
@@ -86,6 +85,7 @@ export const getLeads = async (req: AuthRequest, res: Response) => {
           "supervisorId",
           "salesmanId",
           "clientId",
+          "createdById",
         ].includes(key)
       ) {
         filter[key] = mongoose.Types.ObjectId.isValid(value)
@@ -96,157 +96,284 @@ export const getLeads = async (req: AuthRequest, res: Response) => {
       }
     });
 
-    // =========================
-    // Aggregation Pipeline
-    // =========================
-    const pipeline: any[] = [
-      { $match: filter },
-
-      // CLIENT
-      {
-        $lookup: {
-          from: "clients",
-          localField: "clientId",
-          foreignField: "_id",
-          as: "clientId",
-        },
-      },
-      { $unwind: { path: "$clientId", preserveNullAndEmptyArrays: true } },
-
-      // COMPANY
-      {
-        $lookup: {
-          from: "companies",
-          localField: "companyId",
-          foreignField: "_id",
-          as: "companyId",
-        },
-      },
-      { $unwind: { path: "$companyId", preserveNullAndEmptyArrays: true } },
-
-      // BRANCH
-      {
-        $lookup: {
-          from: "branches",
-          localField: "branchId",
-          foreignField: "_id",
-          as: "branchId",
-        },
-      },
-      { $unwind: { path: "$branchId", preserveNullAndEmptyArrays: true } },
-
-      // SUPERVISOR
-      {
-        $lookup: {
-          from: "supervisors",
-          localField: "supervisorId",
-          foreignField: "_id",
-          as: "supervisorId",
-        },
-      },
-      { $unwind: { path: "$supervisorId", preserveNullAndEmptyArrays: true } },
-
-      // SALESMAN
-      {
-        $lookup: {
-          from: "salesmen",
-          localField: "salesmanId",
-          foreignField: "_id",
-          as: "salesmanId",
-        },
-      },
-      { $unwind: { path: "$salesmanId", preserveNullAndEmptyArrays: true } },
-    ];
-
-    // =========================
-    // SEARCH (leadTitle + clientName)
-    // =========================
     if (search && search.trim() !== "") {
-      pipeline.push({
-        $match: {
-          $or: [
-            {
-              leadTitle: {
-                $regex: search,
-                $options: "i",
-              },
-            },
-            {
-              "clientId.clientName": {
-                $regex: search,
-                $options: "i",
-              },
-            },
-          ],
+      filter.$or = [
+        {
+          leadTitle: {
+            $regex: search,
+            $options: "i",
+          },
         },
-      });
+        {
+          shopName: {
+            $regex: search,
+            $options: "i",
+          },
+        },
+      ];
     }
 
-    // =========================
-    // TOTAL COUNT
-    // =========================
-    const totalData = await Lead.aggregate([
-      ...pipeline,
-      { $count: "total" },
-    ]);
+    const total = await Lead.countDocuments(filter);
 
-    const total = totalData[0]?.total || 0;
+    const leads: any[] = await Lead.find(filter)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .lean();
 
-    // =========================
-    // DATA
-    // =========================
-    const leads = await Lead.aggregate([
-      ...pipeline,
+    const companyIds = [
+      ...new Set(
+        leads
+          .filter((x: any) => x.companyId)
+          .map((x: any) => x.companyId.toString())
+      ),
+    ];
 
-      { $sort: { createdAt: -1 } },
-      { $skip: skip },
-      { $limit: limit },
+    const branchIds = [
+      ...new Set(
+        leads
+          .filter((x: any) => x.branchId)
+          .map((x: any) => x.branchId.toString())
+      ),
+    ];
 
+    const supervisorIds = [
+      ...new Set(
+        leads
+          .filter((x: any) => x.supervisorId)
+          .map((x: any) =>
+            x.supervisorId.toString()
+          )
+      ),
+    ];
+
+    const salesmanIds = [
+      ...new Set(
+        leads
+          .filter((x: any) => x.salesmanId)
+          .map((x: any) =>
+            x.salesmanId.toString()
+          )
+      ),
+    ];
+
+    const clientIds = [
+      ...new Set(
+        leads
+          .filter((x: any) => x.clientId)
+          .map((x: any) => x.clientId.toString())
+      ),
+    ];
+
+    const companies: any[] = await Company.find(
       {
-        $project: {
-          leadTitle: 1,
-          clientName: 1,
-          clientEmail: 1,
-          clientPhone: 1,
-          shopName: 1,
-          status: 1,
-          createdAt: 1,
-
-          clientId: {
-            _id: "$clientId._id",
-            clientName: "$clientId.clientName",
-            email: "$clientId.email",
-            phone: "$clientId.phone",
-            address: "$clientId.address",
-          },
-
-          companyId: {
-            _id: "$companyId._id",
-            companyName: "$companyId.companyName",
-          },
-
-          branchId: {
-            _id: "$branchId._id",
-            branchName: "$branchId.branchName",
-          },
-
-          supervisorId: {
-            _id: "$supervisorId._id",
-            supervisorName: "$supervisorId.supervisorName",
-          },
-
-          salesmanId: {
-            _id: "$salesmanId._id",
-            salesmanName: "$salesmanId.salesmanName",
-          },
-        },
+        _id: { $in: companyIds },
       },
-    ]);
+      {
+        companyName: 1,
+      }
+    ).lean();
+
+    const branches: any[] = await Branch.find(
+      {
+        _id: { $in: branchIds },
+      },
+      {
+        branchName: 1,
+      }
+    ).lean();
+
+    const supervisors: any[] =
+      await Supervisor.find(
+        {
+          _id: { $in: supervisorIds },
+        },
+        {
+          supervisorName: 1,
+        }
+      ).lean();
+
+    const salesmen: any[] = await Salesman.find(
+      {
+        _id: { $in: salesmanIds },
+      },
+      {
+        salesmanName: 1,
+      }
+    ).lean();
+
+    const clients: any[] = await Client.find(
+      {
+        _id: { $in: clientIds },
+      },
+      {
+        clientName: 1,
+        email: 1,
+        phone: 1,
+        address: 1,
+
+        companyId: 1,
+        branchId: 1,
+        supervisorId: 1,
+        salesmanId: 1,
+
+        createdAt: 1,
+        updatedAt: 1,
+        __v: 1,
+      }
+    ).lean();
+
+    const companyMap = new Map(
+      companies.map((x: any) => [
+        x._id.toString(),
+        x.companyName,
+      ])
+    );
+
+    const branchMap = new Map(
+      branches.map((x: any) => [
+        x._id.toString(),
+        x.branchName,
+      ])
+    );
+
+    const supervisorMap = new Map(
+      supervisors.map((x: any) => [
+        x._id.toString(),
+        x.supervisorName,
+      ])
+    );
+
+    const salesmanMap = new Map(
+      salesmen.map((x: any) => [
+        x._id.toString(),
+        x.salesmanName,
+      ])
+    );
+
+    const clientMap = new Map(
+      clients.map((x: any) => [
+        x._id.toString(),
+        {
+          _id: x._id,
+          clientName: x.clientName,
+          email: x.email,
+          phone: x.phone,
+          address: x.address,
+
+          companyId: x.companyId
+            ? {
+                _id: x.companyId,
+                companyName:
+                  companyMap.get(
+                    x.companyId.toString()
+                  ) || "",
+              }
+            : null,
+
+          branchId: x.branchId
+            ? {
+                _id: x.branchId,
+                branchName:
+                  branchMap.get(
+                    x.branchId.toString()
+                  ) || "",
+              }
+            : null,
+
+          supervisorId: x.supervisorId
+            ? {
+                _id: x.supervisorId,
+                supervisorName:
+                  supervisorMap.get(
+                    x.supervisorId.toString()
+                  ) || "",
+              }
+            : null,
+
+          salesmanId: x.salesmanId
+            ? {
+                _id: x.salesmanId,
+                salesmanName:
+                  salesmanMap.get(
+                    x.salesmanId.toString()
+                  ) || "",
+              }
+            : null,
+
+          createdAt: x.createdAt,
+          updatedAt: x.updatedAt,
+          __v: x.__v,
+        },
+      ])
+    );
+
+    const finalLeads = leads.map((lead: any) => {
+      return {
+        _id: lead._id,
+
+        leadTitle: lead.leadTitle,
+        shopName: lead.shopName,
+
+        status: lead.status,
+        notes: lead.notes,
+
+        createdAt: lead.createdAt,
+        updatedAt: lead.updatedAt,
+
+        clientId: lead.clientId
+          ? clientMap.get(
+              lead.clientId.toString()
+            ) || null
+          : null,
+
+        companyId: lead.companyId
+          ? {
+              _id: lead.companyId,
+              companyName:
+                companyMap.get(
+                  lead.companyId.toString()
+                ) || "",
+            }
+          : null,
+
+        branchId: lead.branchId
+          ? {
+              _id: lead.branchId,
+              branchName:
+                branchMap.get(
+                  lead.branchId.toString()
+                ) || "",
+            }
+          : null,
+
+        supervisorId: lead.supervisorId
+          ? {
+              _id: lead.supervisorId,
+              supervisorName:
+                supervisorMap.get(
+                  lead.supervisorId.toString()
+                ) || "",
+            }
+          : null,
+
+        salesmanId: lead.salesmanId
+          ? {
+              _id: lead.salesmanId,
+              salesmanName:
+                salesmanMap.get(
+                  lead.salesmanId.toString()
+                ) || "",
+            }
+          : null,
+      };
+    });
 
     return res.status(200).json({
       success: true,
       message: "Leads fetched successfully",
-      data: leads,
+      data: finalLeads,
+
       pagination: {
         total,
         page,
@@ -255,7 +382,7 @@ export const getLeads = async (req: AuthRequest, res: Response) => {
       },
     });
   } catch (error: any) {
-    return res.status(400).json({
+    return res.status(500).json({
       success: false,
       message: "Error fetching leads",
       error: error.message,

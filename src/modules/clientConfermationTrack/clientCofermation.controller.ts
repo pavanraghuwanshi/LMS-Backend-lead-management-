@@ -48,17 +48,11 @@ export const getClientConfermation = async (
 
     const skip = (page - 1) * limit;
 
-    // =====================================
-    // BASE FILTER
-    // =====================================
     const filter: any = buildLeadFilter(
       user,
       req.query
     );
 
-    // =====================================
-    // FIX OBJECT ID ISSUE
-    // =====================================
     if (filter.companyId) {
       filter.companyId =
         new mongoose.Types.ObjectId(
@@ -87,9 +81,6 @@ export const getClientConfermation = async (
         );
     }
 
-    // =====================================
-    // OTHER FILTERS
-    // =====================================
     if (clientFeedback) {
       filter.clientFeedback = {
         $regex: clientFeedback,
@@ -106,9 +97,6 @@ export const getClientConfermation = async (
       filter.createdByRole = createdByRole;
     }
 
-    // =====================================
-    // DATE FILTER
-    // =====================================
     if (
       installationDateFrom ||
       installationDateTo
@@ -130,17 +118,11 @@ export const getClientConfermation = async (
       }
     }
 
-    // =====================================
-    // PIPELINE
-    // =====================================
     const pipeline: any[] = [
       {
         $match: filter,
       },
 
-      // =====================================
-      // LEAD LOOKUP
-      // =====================================
       {
         $lookup: {
           from: "leads",
@@ -175,9 +157,6 @@ export const getClientConfermation = async (
         },
       },
 
-      // =====================================
-      // CLIENT LOOKUP
-      // =====================================
       {
         $lookup: {
           from: "clients",
@@ -214,85 +193,6 @@ export const getClientConfermation = async (
         },
       },
 
-      // =====================================
-      // COMPANY LOOKUP
-      // =====================================
-      {
-        $lookup: {
-          from: "companies",
-          localField: "companyId",
-          foreignField: "_id",
-          as: "companyId",
-        },
-      },
-
-      {
-        $unwind: {
-          path: "$companyId",
-          preserveNullAndEmptyArrays: true,
-        },
-      },
-
-      // =====================================
-      // BRANCH LOOKUP
-      // =====================================
-      {
-        $lookup: {
-          from: "branches",
-          localField: "branchId",
-          foreignField: "_id",
-          as: "branchId",
-        },
-      },
-
-      {
-        $unwind: {
-          path: "$branchId",
-          preserveNullAndEmptyArrays: true,
-        },
-      },
-
-      // =====================================
-      // SUPERVISOR LOOKUP
-      // =====================================
-      {
-        $lookup: {
-          from: "supervisors",
-          localField: "supervisorId",
-          foreignField: "_id",
-          as: "supervisorId",
-        },
-      },
-
-      {
-        $unwind: {
-          path: "$supervisorId",
-          preserveNullAndEmptyArrays: true,
-        },
-      },
-
-      // =====================================
-      // SALESMAN LOOKUP
-      // =====================================
-      {
-        $lookup: {
-          from: "salesmen",
-          localField: "salesmanId",
-          foreignField: "_id",
-          as: "salesmanId",
-        },
-      },
-
-      {
-        $unwind: {
-          path: "$salesmanId",
-          preserveNullAndEmptyArrays: true,
-        },
-      },
-
-      // =====================================
-      // APPOINTMENT LOOKUP
-      // =====================================
       {
         $lookup: {
           from: "appointments",
@@ -310,9 +210,6 @@ export const getClientConfermation = async (
       },
     ];
 
-    // =====================================
-    // SEARCH
-    // =====================================
     if (
       search &&
       search.trim() !== ""
@@ -352,38 +249,13 @@ export const getClientConfermation = async (
       });
     }
 
-    // =====================================
-    // SET CLIENT INSIDE LEAD
-    // =====================================
     pipeline.push(
-      {
-        $addFields: {
-          "leadId.clientId": {
-            _id: "$clientData._id",
-            clientName:
-              "$clientData.clientName",
-          },
-        },
-      },
-
-      {
-        $project: {
-          clientData: 0,
-        },
-      },
-
-      // =====================================
-      // SORT
-      // =====================================
       {
         $sort: {
           createdAt: -1,
         },
       },
 
-      // =====================================
-      // PAGINATION
-      // =====================================
       {
         $facet: {
           data: [
@@ -404,25 +276,240 @@ export const getClientConfermation = async (
       }
     );
 
-    // =====================================
-    // EXECUTE
-    // =====================================
     const result =
       await ClientConfermation.aggregate(
         pipeline
       );
 
-    const confirmations =
+    const confirmations: any[] =
       result[0]?.data || [];
 
     const total =
       result[0]?.total?.[0]?.count || 0;
 
+    const companyIds = [
+      ...new Set(
+        confirmations
+          .filter(
+            (x: any) => x.companyId
+          )
+          .map((x: any) =>
+            x.companyId.toString()
+          )
+      ),
+    ].map(
+      (id: string) =>
+        new mongoose.Types.ObjectId(id)
+    );
+
+    const branchIds = [
+      ...new Set(
+        confirmations
+          .filter(
+            (x: any) => x.branchId
+          )
+          .map((x: any) =>
+            x.branchId.toString()
+          )
+      ),
+    ].map(
+      (id: string) =>
+        new mongoose.Types.ObjectId(id)
+    );
+
+    const supervisorIds = [
+      ...new Set(
+        confirmations
+          .filter(
+            (x: any) =>
+              x.supervisorId
+          )
+          .map((x: any) =>
+            x.supervisorId.toString()
+          )
+      ),
+    ].map(
+      (id: string) =>
+        new mongoose.Types.ObjectId(id)
+    );
+
+    const salesmanIds = [
+      ...new Set(
+        confirmations
+          .filter(
+            (x: any) => x.salesmanId
+          )
+          .map((x: any) =>
+            x.salesmanId.toString()
+          )
+      ),
+    ].map(
+      (id: string) =>
+        new mongoose.Types.ObjectId(id)
+    );
+
+    const companies: any[] =
+      await Company.find(
+        {
+          _id: { $in: companyIds },
+        },
+        {
+          companyName: 1,
+        }
+      ).lean();
+
+    const branches: any[] =
+      await Branch.find(
+        {
+          _id: { $in: branchIds },
+        },
+        {
+          branchName: 1,
+        }
+      ).lean();
+
+    const supervisors: any[] =
+      await Supervisor.find(
+        {
+          _id: { $in: supervisorIds },
+        },
+        {
+          supervisorName: 1,
+        }
+      ).lean();
+
+    const salesmen: any[] =
+      await Salesman.find(
+        {
+          _id: { $in: salesmanIds },
+        },
+        {
+          salesmanName: 1,
+        }
+      ).lean();
+
+    const companyMap = new Map(
+      companies.map((x: any) => [
+        x._id.toString(),
+        x.companyName,
+      ])
+    );
+
+    const branchMap = new Map(
+      branches.map((x: any) => [
+        x._id.toString(),
+        x.branchName,
+      ])
+    );
+
+    const supervisorMap = new Map(
+      supervisors.map((x: any) => [
+        x._id.toString(),
+        x.supervisorName,
+      ])
+    );
+
+    const salesmanMap = new Map(
+      salesmen.map((x: any) => [
+        x._id.toString(),
+        x.salesmanName,
+      ])
+    );
+
+    const finalData =
+      confirmations.map(
+        (confirmation: any) => {
+          return {
+            ...confirmation,
+
+            leadId: confirmation.leadId
+              ? {
+                  _id:
+                    confirmation.leadId
+                      ._id,
+
+                  leadTitle:
+                    confirmation.leadId
+                      .leadTitle,
+
+                  clientId:
+                    confirmation.clientData
+                      ? {
+                          _id:
+                            confirmation
+                              .clientData
+                              ._id,
+
+                          clientName:
+                            confirmation
+                              .clientData
+                              .clientName,
+                        }
+                      : null,
+                }
+              : null,
+
+            companyId:
+              confirmation.companyId
+                ? {
+                    _id:
+                      confirmation.companyId,
+
+                    companyName:
+                      companyMap.get(
+                        confirmation.companyId.toString()
+                      ) || "",
+                  }
+                : null,
+
+            branchId:
+              confirmation.branchId
+                ? {
+                    _id:
+                      confirmation.branchId,
+
+                    branchName:
+                      branchMap.get(
+                        confirmation.branchId.toString()
+                      ) || "",
+                  }
+                : null,
+
+            supervisorId:
+              confirmation.supervisorId
+                ? {
+                    _id:
+                      confirmation.supervisorId,
+
+                    supervisorName:
+                      supervisorMap.get(
+                        confirmation.supervisorId.toString()
+                      ) || "",
+                  }
+                : null,
+
+            salesmanId:
+              confirmation.salesmanId
+                ? {
+                    _id:
+                      confirmation.salesmanId,
+
+                    salesmanName:
+                      salesmanMap.get(
+                        confirmation.salesmanId.toString()
+                      ) || "",
+                  }
+                : null,
+          };
+        }
+      );
+
     return res.status(200).json({
       success: true,
       message:
         "Client confirmations fetched successfully",
-      data: confirmations,
+
+      data: finalData,
 
       pagination: {
         total,
@@ -444,7 +531,7 @@ export const getClientConfermation = async (
       message: error.message,
     });
   }
-}
+};
 
 // ==============================
 // CREATE CLIENT CONFIRMATION

@@ -1,6 +1,6 @@
 import mongoose, { Connection } from "mongoose";
 import dotenv from "dotenv";
-// dotenv.config();
+dotenv.config();
 
 type DBConnections = {
   db1: Connection | null;

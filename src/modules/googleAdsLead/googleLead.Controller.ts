@@ -1,26 +1,57 @@
 import { Request, Response } from "express";
 import { google } from "googleapis";
-import { AuthRequest } from "../../middlewares/auth.middleware";
+import jwt from "jsonwebtoken";
+
 import Branch from "../../RocketsalesModels/Branch";
 
+// ==========================================
+// ROLE MAP
+// ==========================================
+const ROLE_MAP: Record<number, string> = {
+  1: "superadmin",
+  2: "company",
+  3: "branch",
+  4: "supervisor",
+  5: "salesman",
+};
+
+// ==========================================
+// GOOGLE OAUTH CLIENT
+// ==========================================
 const oauth2Client = new google.auth.OAuth2(
   process.env.GOOGLE_CLIENT_ID,
   process.env.GOOGLE_CLIENT_SECRET,
   process.env.GOOGLE_REDIRECT_URI
 );
 
-
-
-export const getGoogleAuthUrl = async (req: Request, res: Response): Promise<Response> => {
+// ==========================================
+// GET GOOGLE AUTH URL
+// ==========================================
+export const getGoogleAuthUrl = async (
+  req: Request,
+  res: Response
+): Promise<Response> => {
   try {
     const scopes = [
       "https://www.googleapis.com/auth/adwords",
     ];
 
+    // 🔥 Get JWT token from header
+    const token = req.header("Authorization")?.replace("Bearer ", "");
+
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: "Authorization token is required",
+      });
+    }
+
+    // 🔥 Generate Google Auth URL
     const authUrl = oauth2Client.generateAuthUrl({
       access_type: "offline",
       prompt: "consent",
       scope: scopes,
+      state: token,
     });
 
     return res.status(200).json({
@@ -45,11 +76,13 @@ export const getGoogleAuthUrl = async (req: Request, res: Response): Promise<Res
 // GOOGLE CALLBACK CONTROLLER
 // ==========================================
 export const googleAuthCallback = async (
-  req: AuthRequest,
+  req: Request,
   res: Response
 ): Promise<Response> => {
   try {
     const code = req.query.code as string;
+
+    const token = req.query.state as string;
 
     if (!code) {
       return res.status(400).json({
@@ -58,19 +91,41 @@ export const googleAuthCallback = async (
       });
     }
 
-    // ✅ Only branch allowed
-    if (req.user?.role !== "branch") {
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: "Token missing in state",
+      });
+    }
+
+
+    const decoded = jwt.verify(
+      token,
+      process.env.JWT_SECRET as string
+    ) as any;
+
+
+    const role = ROLE_MAP[decoded.role];
+
+    if (role !== "branch") {
       return res.status(403).json({
         success: false,
         message: "Only branch users allowed",
       });
     }
 
-    // 🔥 Get Google tokens
+
     const { tokens } = await oauth2Client.getToken(code);
 
-    // 🔥 Save in branch collection
-    await Branch.findByIdAndUpdate(req.user.id, {
+    if (!tokens) {
+      return res.status(400).json({
+        success: false,
+        message: "Failed to fetch Google tokens",
+      });
+    }
+
+
+    await Branch.findByIdAndUpdate(decoded.id, {
       googleAds: {
         accessToken: tokens.access_token,
         refreshToken: tokens.refresh_token,
@@ -86,11 +141,11 @@ export const googleAuthCallback = async (
     });
 
   } catch (error: any) {
-    console.error(error);
+    console.error("Google Callback Error:", error);
 
     return res.status(500).json({
       success: false,
-      message: "Authentication failed",
+      message: "Google authentication failed",
       error: error.message,
     });
   }

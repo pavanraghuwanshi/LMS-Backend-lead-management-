@@ -154,6 +154,7 @@ export const googleAuthCallback = async (
 
 import { GoogleAdsApi } from "google-ads-api";
 import { AuthRequest } from "../../middlewares/auth.middleware";
+import Lead from "../lead/lead.model";
 
 const client = new GoogleAdsApi({
   client_id: process.env.GOOGLE_CLIENT_ID!,
@@ -287,6 +288,87 @@ export const getCampaigns = async (
     return res.status(500).json({
       success: false,
       message: "Failed to fetch campaigns",
+      error: error.message,
+    });
+  }
+};
+
+
+
+export const googleLeadWebhook = async (
+  req: Request,
+  res: Response
+): Promise<Response> => {
+  try {
+
+    console.log(
+      "🔥 GOOGLE LEAD RECEIVED:",
+      JSON.stringify(req.body, null, 2)
+    );
+
+    const {
+      lead_id,
+      campaign_id,
+      adgroup_id,
+      user_column_data,
+    } = req.body;
+
+    // ==========================================
+    // HELPER
+    // ==========================================
+    const getField = (name: string) => {
+      return user_column_data?.find(
+        (x: any) => x.column_name === name
+      )?.string_value;
+    };
+
+    // ==========================================
+    // EXTRACT DATA
+    // ==========================================
+    const name = getField("FULL_NAME");
+
+    const phone = getField("PHONE_NUMBER");
+
+    const email = getField("EMAIL");
+
+    const city = getField("CITY");
+
+    const state = getField("STATE");
+
+    // ==========================================
+    // SAVE LEAD
+    // ==========================================
+    const lead = await Lead.create({
+      leadId: lead_id,
+
+      campaignId: campaign_id,
+
+      adGroupId: adgroup_id,
+
+      name,
+
+      phone,
+
+      email,
+
+      city,
+
+      state,
+
+      source: "google_ads",
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Lead received successfully",
+      data: lead,
+    });
+
+  } catch (error: any) {
+    console.log(error);
+
+    return res.status(500).json({
+      success: false,
       error: error.message,
     });
   }

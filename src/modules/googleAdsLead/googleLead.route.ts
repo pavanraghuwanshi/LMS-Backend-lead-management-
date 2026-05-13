@@ -1,5 +1,5 @@
 import express from "express";
-import { getAccessibleCustomers, getCampaigns, getGoogleAuthUrl,googleAuthCallback,} from "../googleAdsLead/googleLead.Controller";
+import { getAccessibleCustomers, getCampaigns, getGoogleAuthUrl,googleAuthCallback, googleLeadWebhook,} from "../googleAdsLead/googleLead.Controller";
 import { authenticate } from "../../middlewares/auth.middleware";
 
 const router = express.Router();
@@ -12,4 +12,6 @@ router.get("/customers", authenticate, getAccessibleCustomers);
 
 router.get("/campaigns", authenticate, getCampaigns);
 
+router.post("/webhook",googleLeadWebhook);
+  
 export default router;

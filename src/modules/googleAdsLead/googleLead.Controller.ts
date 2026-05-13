@@ -150,3 +150,99 @@ export const googleAuthCallback = async (
     });
   }
 };
+
+
+import { GoogleAdsApi } from "google-ads-api";
+import { AuthRequest } from "../../middlewares/auth.middleware";
+
+const client = new GoogleAdsApi({
+  client_id: process.env.GOOGLE_CLIENT_ID!,
+  client_secret: process.env.GOOGLE_CLIENT_SECRET!,
+  developer_token: process.env.GOOGLE_ADS_DEVELOPER_TOKEN!,
+});
+
+export const getAccessibleCustomers = async (
+  req: AuthRequest,
+  res: Response
+): Promise<Response> => {
+  try {
+    // 🔥 Get branch
+    const branch = await Branch.findById(req.user?.id);
+
+    if (!branch) {
+      return res.status(404).json({
+        success: false,
+        message: "Branch not found",
+      });
+    }
+
+    // 🔥 Check Google Ads connection
+    if (!branch?.googleAds?.refreshToken) {
+      return res.status(400).json({
+        success: false,
+        message: "Google Ads not connected",
+      });
+    }
+
+    // ==========================================
+    // FETCH ACCESSIBLE CUSTOMERS
+    // ==========================================
+    const customers =
+      await client.listAccessibleCustomers(
+        branch.googleAds.refreshToken
+      );
+
+    // ==========================================
+    // RESOURCE NAMES
+    // ==========================================
+    const resourceNames =
+      customers.resource_names || [];
+
+    if (resourceNames.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "No Google Ads accounts found",
+      });
+    }
+
+    // Example:
+    // customers/1234567890
+
+    const firstCustomer = resourceNames[0].replace(
+      "customers/",
+      ""
+    );
+
+    // ==========================================
+    // SAVE CUSTOMER ID
+    // ==========================================
+    await Branch.findByIdAndUpdate(req.user?.id, {
+      "googleAds.customerId": firstCustomer,
+      "googleAds.isConnected": true,
+    });
+
+    return res.status(200).json({
+      success: true,
+      message:
+        "Google Ads customer fetched successfully",
+
+      data: {
+        customerId: firstCustomer,
+        accounts: resourceNames,
+      },
+    });
+
+  } catch (error: any) {
+    console.error(
+      "Get Accessible Customers Error:",
+      error
+    );
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch Google Ads accounts",
+      error: error.message,
+    });
+  }
+};
+

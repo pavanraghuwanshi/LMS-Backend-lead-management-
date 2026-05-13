@@ -301,11 +301,30 @@ export const googleLeadWebhook = async (
 ): Promise<Response> => {
   try {
 
+    // ==========================================
+    // VERIFY WEBHOOK KEY
+    // ==========================================
+    const webhookKey =
+      req.headers["google-key"];
+
+    if (
+      webhookKey !==
+      process.env.GOOGLE_WEBHOOK_KEY
+    ) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid webhook key",
+      });
+    }
+
     console.log(
-      "🔥 GOOGLE LEAD RECEIVED:",
-      JSON.stringify(req.body, null, 2)
+      "🔥 GOOGLE LEAD:",
+      req.body
     );
 
+    // ==========================================
+    // GOOGLE DATA
+    // ==========================================
     const {
       lead_id,
       campaign_id,
@@ -313,33 +332,23 @@ export const googleLeadWebhook = async (
       user_column_data,
     } = req.body;
 
-    // ==========================================
-    // HELPER
-    // ==========================================
     const getField = (name: string) => {
       return user_column_data?.find(
         (x: any) => x.column_name === name
       )?.string_value;
     };
 
-    // ==========================================
-    // EXTRACT DATA
-    // ==========================================
     const name = getField("FULL_NAME");
 
     const phone = getField("PHONE_NUMBER");
 
     const email = getField("EMAIL");
 
-    const city = getField("CITY");
-
-    const state = getField("STATE");
-
     // ==========================================
     // SAVE LEAD
     // ==========================================
-    const lead = await Lead.create({
-      leadId: lead_id,
+    await Lead.create({
+      googleLeadId: lead_id,
 
       campaignId: campaign_id,
 
@@ -351,17 +360,14 @@ export const googleLeadWebhook = async (
 
       email,
 
-      city,
-
-      state,
-
       source: "google_ads",
+
+      status: "new",
     });
 
     return res.status(200).json({
       success: true,
       message: "Lead received successfully",
-      data: lead,
     });
 
   } catch (error: any) {

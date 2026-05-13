@@ -184,19 +184,10 @@ export const getAccessibleCustomers = async (
       });
     }
 
-    // ==========================================
-    // FETCH ACCESSIBLE CUSTOMERS
-    // ==========================================
-    const customers =
-      await client.listAccessibleCustomers(
-        branch.googleAds.refreshToken
-      );
 
-    // ==========================================
-    // RESOURCE NAMES
-    // ==========================================
-    const resourceNames =
-      customers.resource_names || [];
+    const customers =  await client.listAccessibleCustomers(  branch.googleAds.refreshToken );
+
+    const resourceNames = customers.resource_names || [];
 
     if (resourceNames.length === 0) {
       return res.status(400).json({
@@ -205,17 +196,10 @@ export const getAccessibleCustomers = async (
       });
     }
 
-    // Example:
-    // customers/1234567890
 
-    const firstCustomer = resourceNames[0].replace(
-      "customers/",
-      ""
-    );
+    const firstCustomer = resourceNames[0].replace( "customers/", "" );
 
-    // ==========================================
-    // SAVE CUSTOMER ID
-    // ==========================================
+
     await Branch.findByIdAndUpdate(req.user?.id, {
       "googleAds.customerId": firstCustomer,
       "googleAds.isConnected": true,

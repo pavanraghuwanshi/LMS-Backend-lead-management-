@@ -34,6 +34,8 @@ const branchSchema = new Schema(
       expiryDate: Number,
       scope: String,
       tokenType: String,
+      customerId:String,
+      isConnected:String
     },
   },
   { timestamps: true }

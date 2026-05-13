@@ -1,5 +1,7 @@
 import { Request, Response } from "express";
 import { google } from "googleapis";
+import { AuthRequest } from "../../middlewares/auth.middleware";
+import Branch from "../../RocketsalesModels/Branch";
 
 const oauth2Client = new google.auth.OAuth2(
   process.env.GOOGLE_CLIENT_ID,
@@ -43,7 +45,7 @@ export const getGoogleAuthUrl = async (req: Request, res: Response): Promise<Res
 // GOOGLE CALLBACK CONTROLLER
 // ==========================================
 export const googleAuthCallback = async (
-  req: Request,
+  req: AuthRequest,
   res: Response
 ): Promise<Response> => {
   try {
@@ -56,23 +58,20 @@ export const googleAuthCallback = async (
       });
     }
 
-    // 🔥 Get Tokens
-    const { tokens } = await oauth2Client.getToken(code);
-
-    if (!tokens) {
-      return res.status(400).json({
+    // ✅ Only branch allowed
+    if (req.user?.role !== "branch") {
+      return res.status(403).json({
         success: false,
-        message: "Failed to fetch tokens",
+        message: "Only branch users allowed",
       });
     }
 
-    // 🔥 Set Credentials
-    oauth2Client.setCredentials(tokens);
+    // 🔥 Get Google tokens
+    const { tokens } = await oauth2Client.getToken(code);
 
-    return res.status(200).json({
-      success: true,
-      message: "Google authentication successful",
-      data: {
+    // 🔥 Save in branch collection
+    await Branch.findByIdAndUpdate(req.user.id, {
+      googleAds: {
         accessToken: tokens.access_token,
         refreshToken: tokens.refresh_token,
         expiryDate: tokens.expiry_date,
@@ -80,12 +79,18 @@ export const googleAuthCallback = async (
         tokenType: tokens.token_type,
       },
     });
+
+    return res.status(200).json({
+      success: true,
+      message: "Google Ads connected successfully",
+    });
+
   } catch (error: any) {
-    console.error("Google Callback Error:", error);
+    console.error(error);
 
     return res.status(500).json({
       success: false,
-      message: "Google authentication failed",
+      message: "Authentication failed",
       error: error.message,
     });
   }

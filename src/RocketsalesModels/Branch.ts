@@ -28,6 +28,13 @@ const branchSchema = new Schema(
       requireImage: { type: Boolean, default: false },
       requireAudio: { type: Boolean, default: false },
     },
+    googleAds: {
+      accessToken: String,
+      refreshToken: String,
+      expiryDate: Number,
+      scope: String,
+      tokenType: String,
+    },
   },
   { timestamps: true }
 );

@@ -35,7 +35,8 @@ const branchSchema = new Schema(
       scope: String,
       tokenType: String,
       customerId:String,
-      isConnected:String
+      isConnected:String,
+      webhookKey: String,
     },
   },
   { timestamps: true }

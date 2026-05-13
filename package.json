@@ -2,11 +2,11 @@
   "name": "lms-backend",
   "version": "1.0.0",
   "description": "this is an lead management system of rocketsales",
-  "main": "server.js",
+  "main": "server.ts",
   "scripts": {
     "dev": "nodemon",
     "build": "tsc",
-    "start": "node dist/server.js"
+    "start": "node dist/server.ts"
   },
   "keywords": [
     "lms"

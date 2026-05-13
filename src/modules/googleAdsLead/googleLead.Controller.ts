@@ -230,3 +230,64 @@ export const getAccessibleCustomers = async (
   }
 };
 
+
+
+export const getCampaigns = async (
+  req: AuthRequest,
+  res: Response
+): Promise<Response> => {
+  try {
+    const branch = await Branch.findById(req.user?.id);
+
+    if (!branch?.googleAds?.refreshToken) {
+      return res.status(400).json({
+        success: false,
+        message: "Google Ads not connected",
+      });
+    }
+
+    if (!branch?.googleAds?.customerId) {
+      return res.status(400).json({
+        success: false,
+        message: "Customer ID missing",
+      });
+    }
+
+    // ==========================================
+    // CUSTOMER INSTANCE
+    // ==========================================
+    const customer = client.Customer({
+      customer_id: branch.googleAds.customerId,
+      refresh_token:
+        branch.googleAds.refreshToken,
+    });
+
+    // ==========================================
+    // FETCH CAMPAIGNS
+    // ==========================================
+    const campaigns = await customer.query(`
+      SELECT
+        campaign.id,
+        campaign.name,
+        campaign.status,
+        campaign.advertising_channel_type
+      FROM campaign
+      ORDER BY campaign.id
+    `);
+
+    return res.status(200).json({
+      success: true,
+      total: campaigns.length,
+      data: campaigns,
+    });
+
+  } catch (error: any) {
+    console.error("Get Campaigns Error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch campaigns",
+      error: error.message,
+    });
+  }
+};

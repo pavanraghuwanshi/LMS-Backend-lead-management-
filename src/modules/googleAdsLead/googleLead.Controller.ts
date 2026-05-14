@@ -125,13 +125,22 @@ export const googleAuthCallback = async (
     }
 
 
+    // await Branch.findByIdAndUpdate(decoded.id, {
+    //   googleAds: {
+    //     accessToken: tokens.access_token,
+    //     refreshToken: tokens.refresh_token,
+    //     expiryDate: tokens.expiry_date,
+    //     scope: tokens.scope,
+    //     tokenType: tokens.token_type,
+    //   },
+    // });
     await Branch.findByIdAndUpdate(decoded.id, {
-      googleAds: {
-        accessToken: tokens.access_token,
-        refreshToken: tokens.refresh_token,
-        expiryDate: tokens.expiry_date,
-        scope: tokens.scope,
-        tokenType: tokens.token_type,
+      $set: {
+        "googleAds.accessToken": tokens.access_token,
+        "googleAds.refreshToken": tokens.refresh_token,
+        "googleAds.expiryDate": tokens.expiry_date,
+        "googleAds.scope": tokens.scope,
+        "googleAds.tokenType": tokens.token_type,
       },
     });
 

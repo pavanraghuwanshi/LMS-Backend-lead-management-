@@ -317,6 +317,7 @@ export const getLeads = async (
 
         status: lead.status,
         notes: lead.notes,
+        leadFrom:lead.leadFrom,
 
         createdAt: lead.createdAt,
         updatedAt: lead.updatedAt,

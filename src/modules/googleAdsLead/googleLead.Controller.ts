@@ -155,6 +155,7 @@ export const googleAuthCallback = async (
 import { GoogleAdsApi } from "google-ads-api";
 import { AuthRequest } from "../../middlewares/auth.middleware";
 import Lead from "../lead/lead.model";
+import Client from "../ClientsModule/client.model";
 
 const client = new GoogleAdsApi({
   client_id: process.env.GOOGLE_CLIENT_ID!,
@@ -333,7 +334,7 @@ export const googleLeadWebhook = async (
     } = req.body;
 
     // ==========================================
-    // HELPER FUNCTION
+    // SAFE HELPER FUNCTION
     // ==========================================
     const getField = (columnId: string) => {
       return user_column_data?.find(
@@ -344,7 +345,7 @@ export const googleLeadWebhook = async (
     // ==========================================
     // USER DATA
     // ==========================================
-    const name = getField("FULL_NAME");
+    const name = getField("FULL_NAME") || "Unknown Client";
     const phone = getField("PHONE_NUMBER");
     const email = getField("EMAIL");
     const city = getField("CITY");
@@ -366,7 +367,7 @@ export const googleLeadWebhook = async (
     }
 
     // ==========================================
-    // FIND BRANCH USING GOOGLE KEY
+    // FIND BRANCH
     // ==========================================
     const branch = await Branch.findOne({
       "googleAds.webhookKey": webhookKey,
@@ -380,37 +381,67 @@ export const googleLeadWebhook = async (
     }
 
     // ==========================================
+    // FIND OR CREATE CLIENT
+    // ==========================================
+    let client = null;
+
+    if (phone || email) {
+      client = await Client.findOne({
+        companyId: branch.companyId,
+        $or: [
+          ...(phone ? [{ phone }] : []),
+          ...(email ? [{ email }] : []),
+        ],
+      });
+    }
+
+    if (!client) {
+      client = await Client.create({
+        clientName: name,
+        email,
+        phone,
+        address:
+          city || state
+            ? `${city || ""} ${state || ""}`.trim()
+            : "",
+
+        companyId: branch.companyId,
+        branchId: branch._id,
+      });
+    }
+
+    // ==========================================
     // CREATE LEAD
     // ==========================================
     const lead = await Lead.create({
-      // Existing fields
       leadTitle: "Google Ads Lead",
-      shopName: companyName,
+      shopName: companyName || "",
       status: "new",
+
       companyId: branch.companyId,
       branchId: branch._id,
+
       createdById: branch._id,
       createdByRole: "branch",
+
       notes: "Lead received from Google Ads",
 
-      // ======================================
-      // GOOGLE ADS FIELDS
-      // ======================================
+      // CLIENT REFERENCE
+      clientId: client._id,
+
+      // PLATFORM INFO
+      leadFrom: "google_ads",
+      source: "google_ads",
+
+      // GOOGLE ADS DATA
       googleLeadId: lead_id,
       campaignId: campaign_id?.toString(),
       adGroupId: adgroup_id?.toString(),
-      name,
-      phone,
-      email,
-      city,
-      state,
-      source: "google_ads",
-
-      // Extra metadata
-      gclId: gcl_id,
-      formId: form_id?.toString(),
       creativeId: creative_id?.toString(),
-      isTestLead: is_test,
+      formId: form_id?.toString(),
+      gclId: gcl_id,
+
+      isTestLead: is_test || false,
     });
 
     console.log("✅ LEAD SAVED:", lead._id);
@@ -420,6 +451,7 @@ export const googleLeadWebhook = async (
       message: "Lead received successfully",
       data: lead,
     });
+
   } catch (error: any) {
     console.log("❌ GOOGLE WEBHOOK ERROR:", error);
 

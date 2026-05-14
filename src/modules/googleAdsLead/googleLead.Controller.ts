@@ -302,7 +302,6 @@ export const googleLeadWebhook = async (
   res: Response
 ): Promise<Response> => {
   try {
-
     console.log(
       "🔥 GOOGLE WEBHOOK BODY:",
       JSON.stringify(req.body, null, 2)
@@ -313,10 +312,7 @@ export const googleLeadWebhook = async (
     // ==========================================
     const webhookKey = req.body.google_key;
 
-    if (
-      webhookKey !==
-      process.env.GOOGLE_WEBHOOK_KEY
-    ) {
+    if (webhookKey !== process.env.GOOGLE_WEBHOOK_KEY) {
       return res.status(401).json({
         success: false,
         message: "Invalid webhook key",
@@ -338,7 +334,7 @@ export const googleLeadWebhook = async (
     } = req.body;
 
     // ==========================================
-    // HELPER FUNCTION
+    // SAFE HELPER FUNCTION
     // ==========================================
     const getField = (columnId: string) => {
       return user_column_data?.find(
@@ -349,184 +345,120 @@ export const googleLeadWebhook = async (
     // ==========================================
     // USER DATA
     // ==========================================
-    const name =
-      getField("FULL_NAME");
-
-    const phone =
-      getField("PHONE_NUMBER");
-
-    const email =
-      getField("EMAIL");
-
-    const city =
-      getField("CITY");
-
-    const state =
-      getField("STATE");
-
-    const companyName =
-      getField("COMPANY_NAME");
+    const name = getField("FULL_NAME") || "Unknown Client";
+    const phone = getField("PHONE_NUMBER");
+    const email = getField("EMAIL");
+    const city = getField("CITY");
+    const state = getField("STATE");
+    const companyName = getField("COMPANY_NAME");
 
     // ==========================================
     // PREVENT DUPLICATE LEADS
     // ==========================================
-    const existingLead =
-      await Lead.findOne({
-        googleLeadId: lead_id,
-      });
+    const existingLead = await Lead.findOne({
+      googleLeadId: lead_id,
+    });
 
     if (existingLead) {
       return res.status(200).json({
         success: true,
-        message:
-          "Lead already exists",
+        message: "Lead already exists",
       });
     }
 
     // ==========================================
-    // FIND BRANCH USING GOOGLE KEY
+    // FIND BRANCH
     // ==========================================
     const branch = await Branch.findOne({
-      "googleAds.webhookKey":
-        webhookKey,
+      "googleAds.webhookKey": webhookKey,
     });
 
     if (!branch) {
       return res.status(404).json({
         success: false,
-        message:
-          "Branch not found",
+        message: "Branch not found",
       });
     }
 
     // ==========================================
     // FIND OR CREATE CLIENT
     // ==========================================
-    let client = await Client.findOne({
-      $or: [
-        ...(phone ? [{ phone }] : []),
-        ...(email ? [{ email }] : []),
-      ],
-      companyId: branch.companyId,
-    });
+    let client = null;
+
+    if (phone || email) {
+      client = await Client.findOne({
+        companyId: branch.companyId,
+        $or: [
+          ...(phone ? [{ phone }] : []),
+          ...(email ? [{ email }] : []),
+        ],
+      });
+    }
 
     if (!client) {
-
       client = await Client.create({
-        clientName: name || "Unknown Client",
-
+        clientName: name,
         email,
-
         phone,
-
         address:
           city || state
             ? `${city || ""} ${state || ""}`.trim()
             : "",
 
-        companyId:
-          branch.companyId,
-
-        branchId:
-          branch._id,
+        companyId: branch.companyId,
+        branchId: branch._id,
       });
-
     }
 
     // ==========================================
     // CREATE LEAD
     // ==========================================
     const lead = await Lead.create({
-
-      // Existing fields
-      leadTitle:
-        "Google Ads Lead",
-
-      shopName:
-        companyName,
-
+      leadTitle: "Google Ads Lead",
+      shopName: companyName || "",
       status: "new",
 
-      companyId:
-        branch.companyId,
+      companyId: branch.companyId,
+      branchId: branch._id,
 
-      branchId:
-        branch._id,
+      createdById: branch._id,
+      createdByRole: "branch",
 
-      createdById:
-        branch._id,
+      notes: "Lead received from Google Ads",
 
-      createdByRole:
-        "branch",
-
-      notes:
-        "Lead received from Google Ads",
-
-      // ======================================
       // CLIENT REFERENCE
-      // ======================================
-      clientId:
-        client._id,
+      clientId: client._id,
 
-      // ======================================
-      // LEAD PLATFORM
-      // ======================================
-      leadFrom:
-        "google_ads",
+      // PLATFORM INFO
+      leadFrom: "google_ads",
+      source: "google_ads",
 
-      source:
-        "google_ads",
+      // GOOGLE ADS DATA
+      googleLeadId: lead_id,
+      campaignId: campaign_id?.toString(),
+      adGroupId: adgroup_id?.toString(),
+      creativeId: creative_id?.toString(),
+      formId: form_id?.toString(),
+      gclId: gcl_id,
 
-      // ======================================
-      // GOOGLE ADS FIELDS
-      // ======================================
-      googleLeadId:
-        lead_id,
-
-      campaignId:
-        campaign_id?.toString(),
-
-      adGroupId:
-        adgroup_id?.toString(),
-
-      gclId:
-        gcl_id,
-
-      formId:
-        form_id?.toString(),
-
-      creativeId:
-        creative_id?.toString(),
-
-      isTestLead:
-        is_test,
+      isTestLead: is_test || false,
     });
 
-    console.log(
-      "✅ LEAD SAVED:",
-      lead._id
-    );
+    console.log("✅ LEAD SAVED:", lead._id);
 
     return res.status(200).json({
       success: true,
-      message:
-        "Lead received successfully",
+      message: "Lead received successfully",
       data: lead,
     });
 
   } catch (error: any) {
-
-    console.log(
-      "❌ GOOGLE WEBHOOK ERROR:",
-      error
-    );
+    console.log("❌ GOOGLE WEBHOOK ERROR:", error);
 
     return res.status(500).json({
       success: false,
-      message:
-        "Failed to process lead",
+      message: "Failed to process lead",
       error: error.message,
     });
-
   }
 };

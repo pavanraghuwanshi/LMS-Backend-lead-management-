@@ -8,7 +8,7 @@ import SuperAdmin from "../../RocketsalesModels/spradmin";
 import Supervisor from "../../RocketsalesModels/Supervisor";
 import Salesman from "../../RocketsalesModels/Salesman";
 
-import {buildLeadFilter, buildHierarchyData } from "../../utils/hierarchy.util";
+import { buildLeadFilter, buildHierarchyData } from "../../utils/hierarchy.util";
 import Client from "../ClientsModule/client.model";
 
 
@@ -95,9 +95,11 @@ export const getLeads = async (
         filter[key] = value;
       }
     });
-if (leadFrom) {
-  filter.leadFrom = leadFrom;
-};
+
+    if (leadFrom) {
+      filter.leadFrom = leadFrom;
+    };
+    
     if (search && search.trim() !== "") {
       filter.$or = [
         {
@@ -265,42 +267,42 @@ if (leadFrom) {
 
           companyId: x.companyId
             ? {
-                _id: x.companyId,
-                companyName:
-                  companyMap.get(
-                    x.companyId.toString()
-                  ) || "",
-              }
+              _id: x.companyId,
+              companyName:
+                companyMap.get(
+                  x.companyId.toString()
+                ) || "",
+            }
             : null,
 
           branchId: x.branchId
             ? {
-                _id: x.branchId,
-                branchName:
-                  branchMap.get(
-                    x.branchId.toString()
-                  ) || "",
-              }
+              _id: x.branchId,
+              branchName:
+                branchMap.get(
+                  x.branchId.toString()
+                ) || "",
+            }
             : null,
 
           supervisorId: x.supervisorId
             ? {
-                _id: x.supervisorId,
-                supervisorName:
-                  supervisorMap.get(
-                    x.supervisorId.toString()
-                  ) || "",
-              }
+              _id: x.supervisorId,
+              supervisorName:
+                supervisorMap.get(
+                  x.supervisorId.toString()
+                ) || "",
+            }
             : null,
 
           salesmanId: x.salesmanId
             ? {
-                _id: x.salesmanId,
-                salesmanName:
-                  salesmanMap.get(
-                    x.salesmanId.toString()
-                  ) || "",
-              }
+              _id: x.salesmanId,
+              salesmanName:
+                salesmanMap.get(
+                  x.salesmanId.toString()
+                ) || "",
+            }
             : null,
 
           createdAt: x.createdAt,
@@ -319,55 +321,55 @@ if (leadFrom) {
 
         status: lead.status,
         notes: lead.notes,
-        leadFrom:lead.leadFrom,
+        leadFrom: lead.leadFrom,
 
         createdAt: lead.createdAt,
         updatedAt: lead.updatedAt,
 
         clientId: lead.clientId
           ? clientMap.get(
-              lead.clientId.toString()
-            ) || null
+            lead.clientId.toString()
+          ) || null
           : null,
 
         companyId: lead.companyId
           ? {
-              _id: lead.companyId,
-              companyName:
-                companyMap.get(
-                  lead.companyId.toString()
-                ) || "",
-            }
+            _id: lead.companyId,
+            companyName:
+              companyMap.get(
+                lead.companyId.toString()
+              ) || "",
+          }
           : null,
 
         branchId: lead.branchId
           ? {
-              _id: lead.branchId,
-              branchName:
-                branchMap.get(
-                  lead.branchId.toString()
-                ) || "",
-            }
+            _id: lead.branchId,
+            branchName:
+              branchMap.get(
+                lead.branchId.toString()
+              ) || "",
+          }
           : null,
 
         supervisorId: lead.supervisorId
           ? {
-              _id: lead.supervisorId,
-              supervisorName:
-                supervisorMap.get(
-                  lead.supervisorId.toString()
-                ) || "",
-            }
+            _id: lead.supervisorId,
+            supervisorName:
+              supervisorMap.get(
+                lead.supervisorId.toString()
+              ) || "",
+          }
           : null,
 
         salesmanId: lead.salesmanId
           ? {
-              _id: lead.salesmanId,
-              salesmanName:
-                salesmanMap.get(
-                  lead.salesmanId.toString()
-                ) || "",
-            }
+            _id: lead.salesmanId,
+            salesmanName:
+              salesmanMap.get(
+                lead.salesmanId.toString()
+              ) || "",
+          }
           : null,
       };
     });
@@ -464,25 +466,25 @@ export const getLeadDropdown = async (
       // ✅ search on leadTitle + clientName
       ...(search
         ? [
-            {
-              $match: {
-                $or: [
-                  {
-                    leadTitle: {
-                      $regex: search,
-                      $options: "i",
-                    },
+          {
+            $match: {
+              $or: [
+                {
+                  leadTitle: {
+                    $regex: search,
+                    $options: "i",
                   },
-                  {
-                    "clientId.clientName": {
-                      $regex: search,
-                      $options: "i",
-                    },
+                },
+                {
+                  "clientId.clientName": {
+                    $regex: search,
+                    $options: "i",
                   },
-                ],
-              },
+                },
+              ],
             },
-          ]
+          },
+        ]
         : []),
 
       {

@@ -118,6 +118,7 @@ export interface ILead extends Document {
 
   createdAt: Date;
   updatedAt: Date;
+  leadFrom:string;
 }
 
 const leadSchema = new Schema<ILead>(
@@ -186,6 +187,9 @@ const leadSchema = new Schema<ILead>(
     clientId: {
       type: Schema.Types.ObjectId,
       ref: "Client",
+    },
+    leadFrom: {
+      type: String,
     },
 
     createdById: {

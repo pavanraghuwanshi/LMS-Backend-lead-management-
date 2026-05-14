@@ -155,6 +155,7 @@ export const googleAuthCallback = async (
 import { GoogleAdsApi } from "google-ads-api";
 import { AuthRequest } from "../../middlewares/auth.middleware";
 import Lead from "../lead/lead.model";
+import Client from "../ClientsModule/client.model";
 
 const client = new GoogleAdsApi({
   client_id: process.env.GOOGLE_CLIENT_ID!,
@@ -399,34 +400,88 @@ export const googleLeadWebhook = async (
     }
 
     // ==========================================
+    // FIND OR CREATE CLIENT
+    // ==========================================
+    let client = await Client.findOne({
+      $or: [
+        ...(phone ? [{ phone }] : []),
+        ...(email ? [{ email }] : []),
+      ],
+      companyId: branch.companyId,
+    });
+
+    if (!client) {
+
+      client = await Client.create({
+        clientName: name || "Unknown Client",
+
+        email,
+
+        phone,
+
+        address:
+          city || state
+            ? `${city || ""} ${state || ""}`.trim()
+            : "",
+
+        companyId:
+          branch.companyId,
+
+        branchId:
+          branch._id,
+      });
+
+    }
+
+    // ==========================================
     // CREATE LEAD
     // ==========================================
     const lead = await Lead.create({
+
       // Existing fields
       leadTitle:
         "Google Ads Lead",
 
-      shopName: companyName,
+      shopName:
+        companyName,
 
       status: "new",
 
       companyId:
         branch.companyId,
 
-      branchId: branch._id,
+      branchId:
+        branch._id,
 
       createdById:
         branch._id,
 
-      createdByRole: "branch",
+      createdByRole:
+        "branch",
 
       notes:
         "Lead received from Google Ads",
 
       // ======================================
+      // CLIENT REFERENCE
+      // ======================================
+      clientId:
+        client._id,
+
+      // ======================================
+      // LEAD PLATFORM
+      // ======================================
+      leadFrom:
+        "google_ads",
+
+      source:
+        "google_ads",
+
+      // ======================================
       // GOOGLE ADS FIELDS
       // ======================================
-      googleLeadId: lead_id,
+      googleLeadId:
+        lead_id,
 
       campaignId:
         campaign_id?.toString(),
@@ -434,20 +489,8 @@ export const googleLeadWebhook = async (
       adGroupId:
         adgroup_id?.toString(),
 
-      name,
-
-      phone,
-
-      email,
-
-      city,
-
-      state,
-
-      source: "google_ads",
-
-      // Extra metadata
-      gclId: gcl_id,
+      gclId:
+        gcl_id,
 
       formId:
         form_id?.toString(),
@@ -455,7 +498,8 @@ export const googleLeadWebhook = async (
       creativeId:
         creative_id?.toString(),
 
-      isTestLead: is_test,
+      isTestLead:
+        is_test,
     });
 
     console.log(
@@ -483,5 +527,6 @@ export const googleLeadWebhook = async (
         "Failed to process lead",
       error: error.message,
     });
+
   }
 };

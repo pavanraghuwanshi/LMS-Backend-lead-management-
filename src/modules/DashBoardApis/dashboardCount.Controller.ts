@@ -2,6 +2,7 @@ import { Response } from "express";
 import Lead from "../lead/lead.model";
 import { AuthRequest } from "../../middlewares/auth.middleware";
 import { buildLeadFilter } from "../../utils/hierarchy.util";
+import mongoose from "mongoose";
 
 export const getLeadDashboardStats = async (
   req: AuthRequest,
@@ -260,6 +261,195 @@ export const getLeadDashboardStats = async (
     });
   } catch (error: any) {
     console.error("Lead Dashboard Stats Error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Something went wrong",
+      error: error.message,
+    });
+  }
+};
+
+
+export const getLeadGrowthMonthWise = async (
+  req: AuthRequest,
+  res: Response
+) => {
+  try {
+    const user = req.user;
+
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized",
+      });
+    }
+
+    // ✅ hierarchy based filter
+    const filter: any = buildLeadFilter(
+      user,
+      req.query
+    );
+
+    // =========================
+    // CONVERT TO OBJECT IDS
+    // =========================
+
+    const objectIdFields = [
+      "companyId",
+      "branchId",
+      "supervisorId",
+      "salesmanId",
+      "clientId",
+      "createdById",
+    ];
+
+    objectIdFields.forEach((field) => {
+      if (
+        filter[field] &&
+        mongoose.Types.ObjectId.isValid(
+          filter[field]
+        )
+      ) {
+        filter[field] =
+          new mongoose.Types.ObjectId(
+            filter[field]
+          );
+      }
+    });
+
+    const now = new Date();
+
+    // last 12 months
+    const startDate = new Date(
+      now.getFullYear(),
+      now.getMonth() - 11,
+      1
+    );
+
+    // =========================
+    // FINAL FILTER
+    // =========================
+
+    const finalFilter = {
+      ...filter,
+      createdAt: {
+        $gte: startDate,
+      },
+    };
+
+
+    // =========================
+    // MONTH WISE LEADS
+    // =========================
+
+    const monthlyLeads = await Lead.aggregate([
+      {
+        $match: finalFilter,
+      },
+
+      {
+        $group: {
+          _id: {
+            year: { $year: "$createdAt" },
+            month: { $month: "$createdAt" },
+          },
+
+          totalLeads: {
+            $sum: 1,
+          },
+
+          convertedLeads: {
+            $sum: {
+              $cond: [
+                {
+                  $eq: [
+                    "$status",
+                    "completed",
+                  ],
+                },
+                1,
+                0,
+              ],
+            },
+          },
+        },
+      },
+
+      {
+        $sort: {
+          "_id.year": 1,
+          "_id.month": 1,
+        },
+      },
+    ]);
+
+
+    // =========================
+    // FORMAT RESPONSE
+    // =========================
+
+    const monthNames = [
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "May",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dec",
+    ];
+
+    const formattedData = monthlyLeads.map(
+      (item) => {
+        const totalLeads =
+          item.totalLeads;
+
+        const convertedLeads =
+          item.convertedLeads;
+
+        const conversionRate =
+          totalLeads > 0
+            ? (
+                (convertedLeads /
+                  totalLeads) *
+                100
+              ).toFixed(2)
+            : "0";
+
+        return {
+          year: item._id.year,
+          month: item._id.month,
+
+          monthName:
+            monthNames[
+              item._id.month - 1
+            ],
+
+          totalLeads,
+          convertedLeads,
+
+          conversionRate: `${conversionRate}%`,
+        };
+      }
+    );
+
+    return res.status(200).json({
+      success: true,
+      message:
+        "Month wise lead growth fetched successfully",
+
+      data: formattedData,
+    });
+  } catch (error: any) {
+    console.error(
+      "Month Wise Lead Growth Error:",
+      error
+    );
 
     return res.status(500).json({
       success: false,

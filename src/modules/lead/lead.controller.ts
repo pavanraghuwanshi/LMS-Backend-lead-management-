@@ -60,7 +60,7 @@ export const getLeads = async (
       });
     }
 
-    let { page = 1, limit = 10, search = "" } =
+    let { page = 1, limit = 10, search = "", leadFrom } =
       req.query as any;
 
     page = parseInt(page);
@@ -95,7 +95,9 @@ export const getLeads = async (
         filter[key] = value;
       }
     });
-
+if (leadFrom) {
+  filter.leadFrom = leadFrom;
+};
     if (search && search.trim() !== "") {
       filter.$or = [
         {

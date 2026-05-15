@@ -125,15 +125,6 @@ export const googleAuthCallback = async (
     }
 
 
-    // await Branch.findByIdAndUpdate(decoded.id, {
-    //   googleAds: {
-    //     accessToken: tokens.access_token,
-    //     refreshToken: tokens.refresh_token,
-    //     expiryDate: tokens.expiry_date,
-    //     scope: tokens.scope,
-    //     tokenType: tokens.token_type,
-    //   },
-    // });
     await Branch.findByIdAndUpdate(decoded.id, {
       $set: {
         "googleAds.accessToken": tokens.access_token,

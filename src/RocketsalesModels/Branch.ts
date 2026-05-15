@@ -38,6 +38,26 @@ const branchSchema = new Schema(
       isConnected:String,
       webhookKey: String,
     },
+    linkedInAds: {
+      accessToken: String,
+    
+      refreshToken: String,
+    
+      expiryDate: Number,
+    
+      scope: String,
+    
+      tokenType: String,
+    
+      accountId: String,
+    
+      isConnected: {
+        type: Boolean,
+        default: false,
+      },
+    
+      webhookKey: String,
+    },
   },
   { timestamps: true }
 );

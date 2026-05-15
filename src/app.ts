@@ -7,6 +7,7 @@ import AppointmentRoute from "./modules/AppointmentModule/Appointment.route"
 import ClientConfirmationRoute from "./modules/clientConfermationTrack/clientCofermation.route"
 import LeadDashboardStatsRoute from "./modules/DashBoardApis/dashboardCount.route"
 import GoogleLeadRoute from "./modules/googleAdsLead/googleLead.route"
+import linkedinLeadRoute from "./modules/linkedIn_Leads/linkedInLead.route"
 
 
 // import MetaLeadRoute from "./modules/Meta_Leads/services/metaLead.route"
@@ -23,6 +24,7 @@ app.use("/api/client-confirmation",ClientConfirmationRoute)
 app.use("/api/dashboard",LeadDashboardStatsRoute)
 
 app.use("/api/google",GoogleLeadRoute)
+app.use("/api/linkedin",linkedinLeadRoute)
 
 
 // app.use("/api/dashboard",MetaLeadRoute)

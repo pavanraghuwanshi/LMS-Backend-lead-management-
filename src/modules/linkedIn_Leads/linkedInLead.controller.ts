@@ -40,14 +40,17 @@ export const getLinkedInAuthUrl = async (
       "r_ads_leadgen_automation",
     ].join(" ");
 
-    const authUrl =
-      `https://www.linkedin.com/oauth/v2/authorization` +
-      `?response_type=code` +
-      `&client_id=${process.env.LINKEDIN_CLIENT_ID}` +
-      `&redirect_uri=${process.env.LINKEDIN_REDIRECT_URI}` +
-      `&scope=${encodeURIComponent(scopes)}` +
-      `&state=${token}`;
-
+    
+    const params = new URLSearchParams({
+        response_type: "code",
+        client_id: process.env.LINKEDIN_CLIENT_ID as string,
+        redirect_uri: process.env
+          .LINKEDIN_REDIRECT_URI as string,
+        scope: scopes,
+        state: token,
+      });
+      
+      const authUrl = `https://www.linkedin.com/oauth/v2/authorization?${params.toString()}`;
     return res.status(200).json({
       success: true,
       data: {

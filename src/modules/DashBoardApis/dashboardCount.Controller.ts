@@ -489,26 +489,24 @@ export const getAppointmentReminders = async (
 
     const now = new Date();
 
-    // ✅ today start
+    // ✅ Today Start
     const startOfDay = new Date();
     startOfDay.setHours(0, 0, 0, 0);
 
-    // ✅ today end
+    // ✅ Today End
     const endOfDay = new Date();
     endOfDay.setHours(23, 59, 59, 999);
 
-    // ✅ next 1 hour
-    const nextHour = new Date(
-      now.getTime() + 60 * 60 * 1000
-    );
+    // =====================================================
+    // ✅ HIERARCHY FILTER
+    // =====================================================
 
-    // ✅ hierarchy filter
     const filter: any = buildLeadFilter(
       user,
       req.query
     );
 
-    // ✅ convert object ids
+    // ✅ Convert ObjectIds
     if (filter.companyId) {
       filter.companyId =
         new mongoose.Types.ObjectId(
@@ -552,24 +550,27 @@ export const getAppointmentReminders = async (
       meetingDate: 1,
     };
 
+    // ✅ UPCOMING
     if (type === "upcoming") {
       reminderType = "upcoming";
 
       shortInfoText =
         "Upcoming meeting with ";
 
+      // ✅ Current time ke baad ki sab appointments
       dateFilter = {
         meetingDate: {
           $gte: now,
-          $lte: nextHour,
         },
       };
 
+      // ✅ Nearest future first
       sortOrder = {
         meetingDate: 1,
       };
     }
 
+    // ✅ MISSED
     else if (type === "missed") {
       reminderType = "missed";
 
@@ -582,11 +583,13 @@ export const getAppointmentReminders = async (
         },
       };
 
+      // ✅ Latest missed first
       sortOrder = {
         meetingDate: -1,
       };
     }
 
+    // ✅ TODAY
     else {
       reminderType = "today";
 
@@ -629,7 +632,10 @@ export const getAppointmentReminders = async (
       {
         $lookup: {
           from: "leads",
-          let: { leadId: "$leadId" },
+
+          let: {
+            leadId: "$leadId",
+          },
 
           pipeline: [
             {
@@ -646,7 +652,6 @@ export const getAppointmentReminders = async (
             {
               $project: {
                 _id: 1,
-                leadTitle: 1,
                 clientId: 1,
               },
             },
@@ -689,7 +694,6 @@ export const getAppointmentReminders = async (
               $project: {
                 _id: 1,
                 clientName: 1,
-                mobileNumber: 1,
               },
             },
           ],
@@ -705,124 +709,7 @@ export const getAppointmentReminders = async (
         },
       },
 
-      // ✅ Company
-      {
-        $lookup: {
-          from: "companies",
-
-          localField: "companyId",
-
-          foreignField: "_id",
-
-          pipeline: [
-            {
-              $project: {
-                _id: 1,
-                companyName: 1,
-              },
-            },
-          ],
-
-          as: "companyId",
-        },
-      },
-
-      {
-        $unwind: {
-          path: "$companyId",
-          preserveNullAndEmptyArrays: true,
-        },
-      },
-
-      // ✅ Branch
-      {
-        $lookup: {
-          from: "branches",
-
-          localField: "branchId",
-
-          foreignField: "_id",
-
-          pipeline: [
-            {
-              $project: {
-                _id: 1,
-                branchName: 1,
-              },
-            },
-          ],
-
-          as: "branchId",
-        },
-      },
-
-      {
-        $unwind: {
-          path: "$branchId",
-          preserveNullAndEmptyArrays: true,
-        },
-      },
-
-      // ✅ Supervisor
-      {
-        $lookup: {
-          from: "supervisors",
-
-          localField:
-            "supervisorId",
-
-          foreignField: "_id",
-
-          pipeline: [
-            {
-              $project: {
-                _id: 1,
-                supervisorName: 1,
-              },
-            },
-          ],
-
-          as: "supervisorId",
-        },
-      },
-
-      {
-        $unwind: {
-          path: "$supervisorId",
-          preserveNullAndEmptyArrays: true,
-        },
-      },
-
-      // ✅ Salesman
-      {
-        $lookup: {
-          from: "salesmen",
-
-          localField: "salesmanId",
-
-          foreignField: "_id",
-
-          pipeline: [
-            {
-              $project: {
-                _id: 1,
-                salesmanName: 1,
-              },
-            },
-          ],
-
-          as: "salesmanId",
-        },
-      },
-
-      {
-        $unwind: {
-          path: "$salesmanId",
-          preserveNullAndEmptyArrays: true,
-        },
-      },
-
-      // ✅ Reminder fields
+      // ✅ Reminder Fields
       {
         $addFields: {
           reminderType,
@@ -839,6 +726,21 @@ export const getAppointmentReminders = async (
               },
             ],
           },
+        },
+      },
+
+      // ✅ Send Only Required Fields
+      {
+        $project: {
+          _id: 0,
+
+          shortInfo: 1,
+
+          reminderType: 1,
+
+          meetingDate: 1,
+
+          meetingType: 1,
         },
       },
 
@@ -908,7 +810,6 @@ export const getAppointmentReminders = async (
     });
   }
 };
-
 
 
 // 📊 Get Lead Source Contribution Percentage

@@ -3,6 +3,7 @@ import Lead from "../lead/lead.model";
 import { AuthRequest } from "../../middlewares/auth.middleware";
 import { buildLeadFilter } from "../../utils/hierarchy.util";
 import mongoose from "mongoose";
+import Appointment from "../AppointmentModule/Appointment.model";
 
 export const getLeadDashboardStats = async (
   req: AuthRequest,
@@ -455,6 +456,455 @@ export const getLeadGrowthMonthWise = async (
       success: false,
       message: "Something went wrong",
       error: error.message,
+    });
+  }
+};
+
+
+// ✅ Get Appointment Reminders
+export const getAppointmentReminders = async (
+  req: AuthRequest,
+  res: Response
+) => {
+  try {
+    const user = req.user;
+
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized",
+      });
+    }
+
+    let {
+      page = 1,
+      limit = 10,
+      type = "today", // today | upcoming | missed
+    } = req.query as any;
+
+    page = Number(page) || 1;
+    limit = Number(limit) || 10;
+
+    const skip = (page - 1) * limit;
+
+    const now = new Date();
+
+    // ✅ today start
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+
+    // ✅ today end
+    const endOfDay = new Date();
+    endOfDay.setHours(23, 59, 59, 999);
+
+    // ✅ next 1 hour
+    const nextHour = new Date(
+      now.getTime() + 60 * 60 * 1000
+    );
+
+    // ✅ hierarchy filter
+    const filter: any = buildLeadFilter(
+      user,
+      req.query
+    );
+
+    // ✅ convert object ids
+    if (filter.companyId) {
+      filter.companyId =
+        new mongoose.Types.ObjectId(
+          filter.companyId
+        );
+    }
+
+    if (filter.branchId) {
+      filter.branchId =
+        new mongoose.Types.ObjectId(
+          filter.branchId
+        );
+    }
+
+    if (filter.supervisorId) {
+      filter.supervisorId =
+        new mongoose.Types.ObjectId(
+          filter.supervisorId
+        );
+    }
+
+    if (filter.salesmanId) {
+      filter.salesmanId =
+        new mongoose.Types.ObjectId(
+          filter.salesmanId
+        );
+    }
+
+    // =====================================================
+    // ✅ TYPE BASED FILTER
+    // =====================================================
+
+    let dateFilter: any = {};
+
+    let reminderType = "today";
+
+    let shortInfoText =
+      "Today's appointment with ";
+
+    let sortOrder: any = {
+      meetingDate: 1,
+    };
+
+    if (type === "upcoming") {
+      reminderType = "upcoming";
+
+      shortInfoText =
+        "Upcoming meeting with ";
+
+      dateFilter = {
+        meetingDate: {
+          $gte: now,
+          $lte: nextHour,
+        },
+      };
+
+      sortOrder = {
+        meetingDate: 1,
+      };
+    }
+
+    else if (type === "missed") {
+      reminderType = "missed";
+
+      shortInfoText =
+        "Missed appointment with ";
+
+      dateFilter = {
+        meetingDate: {
+          $lt: now,
+        },
+      };
+
+      sortOrder = {
+        meetingDate: -1,
+      };
+    }
+
+    else {
+      reminderType = "today";
+
+      shortInfoText =
+        "Today's appointment with ";
+
+      dateFilter = {
+        meetingDate: {
+          $gte: startOfDay,
+          $lte: endOfDay,
+        },
+      };
+
+      sortOrder = {
+        meetingDate: 1,
+      };
+    }
+
+    // =====================================================
+    // ✅ PIPELINE
+    // =====================================================
+
+    const pipeline: any[] = [
+      {
+        $match: {
+          ...filter,
+
+          ...dateFilter,
+
+          status: {
+            $nin: [
+              "completed",
+              "cancelled",
+            ],
+          },
+        },
+      },
+
+      // ✅ Lead
+      {
+        $lookup: {
+          from: "leads",
+          let: { leadId: "$leadId" },
+
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $eq: [
+                    "$_id",
+                    "$$leadId",
+                  ],
+                },
+              },
+            },
+
+            {
+              $project: {
+                _id: 1,
+                leadTitle: 1,
+                clientId: 1,
+              },
+            },
+          ],
+
+          as: "leadId",
+        },
+      },
+
+      {
+        $unwind: {
+          path: "$leadId",
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+
+      // ✅ Client
+      {
+        $lookup: {
+          from: "clients",
+
+          let: {
+            clientId:
+              "$leadId.clientId",
+          },
+
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $eq: [
+                    "$_id",
+                    "$$clientId",
+                  ],
+                },
+              },
+            },
+
+            {
+              $project: {
+                _id: 1,
+                clientName: 1,
+                mobileNumber: 1,
+              },
+            },
+          ],
+
+          as: "clientData",
+        },
+      },
+
+      {
+        $unwind: {
+          path: "$clientData",
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+
+      // ✅ Company
+      {
+        $lookup: {
+          from: "companies",
+
+          localField: "companyId",
+
+          foreignField: "_id",
+
+          pipeline: [
+            {
+              $project: {
+                _id: 1,
+                companyName: 1,
+              },
+            },
+          ],
+
+          as: "companyId",
+        },
+      },
+
+      {
+        $unwind: {
+          path: "$companyId",
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+
+      // ✅ Branch
+      {
+        $lookup: {
+          from: "branches",
+
+          localField: "branchId",
+
+          foreignField: "_id",
+
+          pipeline: [
+            {
+              $project: {
+                _id: 1,
+                branchName: 1,
+              },
+            },
+          ],
+
+          as: "branchId",
+        },
+      },
+
+      {
+        $unwind: {
+          path: "$branchId",
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+
+      // ✅ Supervisor
+      {
+        $lookup: {
+          from: "supervisors",
+
+          localField:
+            "supervisorId",
+
+          foreignField: "_id",
+
+          pipeline: [
+            {
+              $project: {
+                _id: 1,
+                supervisorName: 1,
+              },
+            },
+          ],
+
+          as: "supervisorId",
+        },
+      },
+
+      {
+        $unwind: {
+          path: "$supervisorId",
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+
+      // ✅ Salesman
+      {
+        $lookup: {
+          from: "salesmen",
+
+          localField: "salesmanId",
+
+          foreignField: "_id",
+
+          pipeline: [
+            {
+              $project: {
+                _id: 1,
+                salesmanName: 1,
+              },
+            },
+          ],
+
+          as: "salesmanId",
+        },
+      },
+
+      {
+        $unwind: {
+          path: "$salesmanId",
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+
+      // ✅ Reminder fields
+      {
+        $addFields: {
+          reminderType,
+
+          shortInfo: {
+            $concat: [
+              shortInfoText,
+
+              {
+                $ifNull: [
+                  "$clientData.clientName",
+                  "Client",
+                ],
+              },
+            ],
+          },
+        },
+      },
+
+      // ✅ Sort
+      {
+        $sort: sortOrder,
+      },
+
+      // ✅ Pagination
+      {
+        $facet: {
+          data: [
+            {
+              $skip: skip,
+            },
+
+            {
+              $limit: limit,
+            },
+          ],
+
+          total: [
+            {
+              $count: "count",
+            },
+          ],
+        },
+      },
+    ];
+
+    const result =
+      await Appointment.aggregate(
+        pipeline
+      );
+
+    const reminders =
+      result[0]?.data || [];
+
+    const total =
+      result[0]?.total?.[0]?.count ||
+      0;
+
+    // =====================================================
+    // ✅ RESPONSE
+    // =====================================================
+
+    return res.status(200).json({
+      success: true,
+
+      type: reminderType,
+
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(
+          total / limit
+        ),
+      },
+
+      data: reminders,
+    });
+  } catch (error: any) {
+    return res.status(400).json({
+      success: false,
+      message: error.message,
     });
   }
 };

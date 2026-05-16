@@ -37,7 +37,7 @@ export const getLinkedInAuthUrl = async (
 
     const scopes = [
       "r_ads",
-      "r_ads_leadgen_automation",
+      "r_marketing_leadgen_automation",
     ].join(" ");
 
     const authUrl =

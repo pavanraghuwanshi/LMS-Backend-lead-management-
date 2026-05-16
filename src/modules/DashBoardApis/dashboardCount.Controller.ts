@@ -272,6 +272,7 @@ export const getLeadDashboardStats = async (
 };
 
 
+// ✅ Get Lead Growth Month Wise
 export const getLeadGrowthMonthWise = async (
   req: AuthRequest,
   res: Response
@@ -321,10 +322,10 @@ export const getLeadGrowthMonthWise = async (
 
     const now = new Date();
 
-    // ✅ last 12 months start date
+    // ✅ Start from January of current year
     const startDate = new Date(
       now.getFullYear(),
-      now.getMonth() - 11,
+      0,
       1
     );
 
@@ -404,27 +405,24 @@ export const getLeadGrowthMonthWise = async (
     ];
 
     // =========================
-    // CREATE 12 MONTHS ARRAY
+    // CREATE JAN → CURRENT MONTH
     // =========================
 
     const formattedData = [];
 
-    for (let i = 11; i >= 0; i--) {
-      const date = new Date(
-        now.getFullYear(),
-        now.getMonth() - i,
-        1
-      );
-
-      const year = date.getFullYear();
-      const month = date.getMonth() + 1;
+    for (
+      let month = 0;
+      month <= now.getMonth();
+      month++
+    ) {
+      const year = now.getFullYear();
 
       // ✅ find existing month data
       const existingData =
         monthlyLeads.find(
           (item) =>
             item._id.year === year &&
-            item._id.month === month
+            item._id.month === month + 1
         );
 
       const totalLeads =
@@ -444,10 +442,10 @@ export const getLeadGrowthMonthWise = async (
 
       formattedData.push({
         year,
-        month,
+        month: month + 1,
 
         monthName:
-          monthNames[month - 1],
+          monthNames[month],
 
         totalLeads,
         convertedLeads,

@@ -618,8 +618,8 @@ export const getAppointmentReminders = async (
 
           status: {
             $nin: [
-              "completed",
-              "cancelled",
+              "Completed",
+              "Cancelled",
             ],
           },
         },

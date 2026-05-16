@@ -321,7 +321,7 @@ export const getLeadGrowthMonthWise = async (
 
     const now = new Date();
 
-    // last 12 months
+    // ✅ last 12 months start date
     const startDate = new Date(
       now.getFullYear(),
       now.getMonth() - 11,
@@ -338,7 +338,6 @@ export const getLeadGrowthMonthWise = async (
         $gte: startDate,
       },
     };
-
 
     // =========================
     // MONTH WISE LEADS
@@ -385,9 +384,8 @@ export const getLeadGrowthMonthWise = async (
       },
     ]);
 
-
     // =========================
-    // FORMAT RESPONSE
+    // MONTH NAMES
     // =========================
 
     const monthNames = [
@@ -405,39 +403,58 @@ export const getLeadGrowthMonthWise = async (
       "Dec",
     ];
 
-    const formattedData = monthlyLeads.map(
-      (item) => {
-        const totalLeads =
-          item.totalLeads;
+    // =========================
+    // CREATE 12 MONTHS ARRAY
+    // =========================
 
-        const convertedLeads =
-          item.convertedLeads;
+    const formattedData = [];
 
-        const conversionRate =
-          totalLeads > 0
-            ? (
-                (convertedLeads /
-                  totalLeads) *
-                100
-              ).toFixed(2)
-            : "0";
+    for (let i = 11; i >= 0; i--) {
+      const date = new Date(
+        now.getFullYear(),
+        now.getMonth() - i,
+        1
+      );
 
-        return {
-          year: item._id.year,
-          month: item._id.month,
+      const year = date.getFullYear();
+      const month = date.getMonth() + 1;
 
-          monthName:
-            monthNames[
-              item._id.month - 1
-            ],
+      // ✅ find existing month data
+      const existingData =
+        monthlyLeads.find(
+          (item) =>
+            item._id.year === year &&
+            item._id.month === month
+        );
 
-          totalLeads,
-          convertedLeads,
+      const totalLeads =
+        existingData?.totalLeads || 0;
 
-          conversionRate: `${conversionRate}%`,
-        };
-      }
-    );
+      const convertedLeads =
+        existingData?.convertedLeads || 0;
+
+      const conversionRate =
+        totalLeads > 0
+          ? (
+              (convertedLeads /
+                totalLeads) *
+              100
+            ).toFixed(2)
+          : "0";
+
+      formattedData.push({
+        year,
+        month,
+
+        monthName:
+          monthNames[month - 1],
+
+        totalLeads,
+        convertedLeads,
+
+        conversionRate: `${conversionRate}%`,
+      });
+    }
 
     return res.status(200).json({
       success: true,

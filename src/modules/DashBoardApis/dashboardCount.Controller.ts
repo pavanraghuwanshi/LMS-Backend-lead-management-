@@ -908,3 +908,120 @@ export const getAppointmentReminders = async (
     });
   }
 };
+
+
+
+// 📊 Get Lead Source Contribution Percentage
+export const getLeadSourceContribution = async (
+  req: AuthRequest,
+  res: Response
+) => {
+  try {
+    const user = req.user;
+
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized",
+      });
+    }
+
+    // ✅ Build Filter
+    const rawFilter: any = buildLeadFilter(
+      user,
+      req.query
+    );
+
+    const filter: any = {};
+
+    Object.keys(rawFilter).forEach((key) => {
+      const value = rawFilter[key];
+
+      if (
+        [
+          "companyId",
+          "branchId",
+          "supervisorId",
+          "salesmanId",
+          "clientId",
+          "createdById",
+        ].includes(key)
+      ) {
+        filter[key] = mongoose.Types.ObjectId.isValid(
+          value
+        )
+          ? new mongoose.Types.ObjectId(value)
+          : value;
+      } else {
+        filter[key] = value;
+      }
+    });
+
+    // ✅ Aggregate Lead Source Counts
+    const leadSources = await Lead.aggregate([
+      {
+        $match: filter,
+      },
+      {
+        $group: {
+          _id: {
+            $cond: [
+              {
+                $or: [
+                  { $eq: ["$leadFrom", null] },
+                  { $eq: ["$leadFrom", ""] },
+                ],
+              },
+              "Manual", // ✅ default manual leads
+              "$leadFrom",
+            ],
+          },
+          total: { $sum: 1 },
+        },
+      },
+    ]);
+
+    // ✅ Total Leads
+    const totalLeads = leadSources.reduce(
+      (acc, item) => acc + item.total,
+      0
+    );
+
+    // ✅ Percentage Calculation
+    const formattedData = leadSources.map(
+      (item: any) => ({
+        leadSource: item._id,
+        total: item.total,
+        contribution:
+          totalLeads > 0
+            ? Number(
+                (
+                  (item.total / totalLeads) *
+                  100
+                ).toFixed(2)
+              )
+            : 0,
+      })
+    );
+
+    // ✅ Sort Highest Contribution First
+    formattedData.sort(
+      (a, b) => b.contribution - a.contribution
+    );
+
+    return res.status(200).json({
+      success: true,
+      message:
+        "Lead source contribution fetched successfully",
+      totalLeads,
+      data: formattedData,
+    });
+  } catch (error: any) {
+    return res.status(500).json({
+      success: false,
+      message:
+        "Error fetching lead source contribution",
+      error: error.message,
+    });
+  }
+};

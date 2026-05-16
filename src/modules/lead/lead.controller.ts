@@ -27,6 +27,8 @@ export const createLead = async (req: AuthRequest, res: Response) => {
       ...req.body,
       ...hierarchy,
 
+      leadFrom: req.body.leadFrom || "Manual",
+
       createdById: user.id,
       createdByRole: user.role,
     });
